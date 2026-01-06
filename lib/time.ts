@@ -1,4 +1,4 @@
-const TIME_ZONE = process.env.TZ || "Asia/Seoul";
+const TIME_ZONE = process.env.APP_TZ || process.env.TZ || "Asia/Seoul";
 
 const dateTimeFormatter = new Intl.DateTimeFormat("en-CA", {
   timeZone: TIME_ZONE,
