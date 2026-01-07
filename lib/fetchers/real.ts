@@ -33,7 +33,6 @@ const FX_PROVIDER = (process.env.FX_PROVIDER || "er-api").toLowerCase();
 const FX_INTERVAL = process.env.FX_INTERVAL || "5min";
 const NASDAQ_PROVIDER = (process.env.NASDAQ_PROVIDER || "kis-daily").toLowerCase();
 const NASDAQ_INTRADAY_SYMBOL = process.env.NASDAQ_INTRADAY_SYMBOL || "QQQ";
-const NASDAQ_INTERVAL = process.env.NASDAQ_INTERVAL || "5min";
 const INDEX_START_TIME = process.env.KIS_INDEX_START_TIME || "090000";
 const INDEX_MARKET_CODE =
   (process.env.KIS_INDEX_MARKET_CODE || "U").toUpperCase();
@@ -41,6 +40,13 @@ const INDEX_MARKET_CODE =
 function parseNumber(value: string | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
   const text = String(value).replace(/,/g, "");
+  const parsed = Number(text);
+  return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parsePercent(value: string | number | null | undefined): number {
+  if (value === null || value === undefined) return 0;
+  const text = String(value).replace(/,/g, "").replace(/%/g, "");
   const parsed = Number(text);
   return Number.isFinite(parsed) ? parsed : 0;
 }
@@ -157,6 +163,16 @@ type AlphaVantageResponse = {
   [key: string]: unknown;
 };
 
+type AlphaVantageQuote = {
+  "02. open"?: string;
+  "05. price"?: string;
+  "10. change percent"?: string;
+};
+
+type AlphaVantageQuoteResponse = AlphaVantageResponse & {
+  "Global Quote"?: AlphaVantageQuote;
+};
+
 async function fetchUsdKrwDaily(): Promise<number> {
   const response = await fetch(EXCHANGE_RATE_URL, { cache: "no-store" });
   if (!response.ok) {
@@ -242,9 +258,8 @@ async function fetchNasdaqIntraday(): Promise<number> {
   }
 
   const url = new URL("https://www.alphavantage.co/query");
-  url.searchParams.set("function", "TIME_SERIES_INTRADAY");
+  url.searchParams.set("function", "GLOBAL_QUOTE");
   url.searchParams.set("symbol", NASDAQ_INTRADAY_SYMBOL);
-  url.searchParams.set("interval", NASDAQ_INTERVAL);
   url.searchParams.set("apikey", apiKey);
 
   const response = await fetch(url.toString(), { cache: "no-store" });
@@ -253,7 +268,7 @@ async function fetchNasdaqIntraday(): Promise<number> {
     throw new Error(`NASDAQ intraday request failed (${response.status}). ${text}`);
   }
 
-  const payload = (await response.json()) as AlphaVantageResponse;
+  const payload = (await response.json()) as AlphaVantageQuoteResponse;
   if (payload["Error Message"]) {
     throw new Error(String(payload["Error Message"]));
   }
@@ -261,40 +276,23 @@ async function fetchNasdaqIntraday(): Promise<number> {
     throw new Error(String(payload.Note));
   }
 
-  const seriesKey = Object.keys(payload).find((key) =>
-    key.startsWith("Time Series"),
-  );
-  if (!seriesKey) {
-    throw new Error("NASDAQ intraday response missing time series.");
+  const quote = payload["Global Quote"];
+  if (!quote) {
+    throw new Error("NASDAQ quote response missing Global Quote.");
   }
 
-  const series = payload[seriesKey];
-  if (!series || typeof series !== "object") {
-    throw new Error("NASDAQ intraday time series is invalid.");
+  const open = parseNumber(quote["02. open"]);
+  const price = parseNumber(quote["05. price"]);
+  if (open && price) {
+    return ((price - open) / open) * 100;
   }
 
-  const timestamps = Object.keys(series as Record<string, unknown>).sort();
-  const latestTimestamp = timestamps[timestamps.length - 1];
-  if (!latestTimestamp) {
-    throw new Error("NASDAQ intraday time series is empty.");
-  }
-  const latestDate = latestTimestamp.slice(0, 10);
-  const dayTimestamps = timestamps.filter((ts) => ts.startsWith(latestDate));
-  const firstTimestamp = dayTimestamps[0];
-  if (!firstTimestamp) {
-    throw new Error("NASDAQ intraday data missing latest day.");
+  const fallbackPct = parsePercent(quote["10. change percent"]);
+  if (fallbackPct) {
+    return fallbackPct;
   }
 
-  const daySeries = series as Record<string, Record<string, string>>;
-  const firstBar = daySeries[firstTimestamp];
-  const latestBar = daySeries[latestTimestamp];
-  const open = parseNumber(firstBar?.["1. open"]);
-  const close = parseNumber(latestBar?.["4. close"]);
-  if (!open) {
-    throw new Error("NASDAQ intraday open price missing.");
-  }
-
-  return ((close - open) / open) * 100;
+  throw new Error("NASDAQ quote response missing open/price.");
 }
 
 async function fetchNasdaqChangePct(): Promise<number> {
