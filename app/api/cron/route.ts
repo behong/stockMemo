@@ -55,7 +55,14 @@ export async function GET(request: Request) {
     const now = new Date();
     const { date, time } = getKstDateTime(now);
     if (!isTradingWindow(now)) {
-      return NextResponse.json({ ok: true, skipped: true, date, time });
+      console.info("[cron] skipped outside market hours", { date, time });
+      return NextResponse.json({
+        ok: true,
+        skipped: true,
+        date,
+        time,
+        reason: "outside_market_hours",
+      });
     }
     const data = await fetchMarketData();
 
