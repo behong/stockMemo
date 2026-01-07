@@ -96,8 +96,13 @@ const COPY: Record<Language, Record<string, string>> = {
   },
 };
 
-function signedClass(value: number): string {
+function signedClass(value: number, lang: Language): string {
   const tone = getSignedColor(value);
+  if (lang === "ko") {
+    if (tone === "red") return styles.pos;
+    if (tone === "blue") return styles.neg;
+    return styles.neutral;
+  }
   if (tone === "red") return styles.neg;
   if (tone === "blue") return styles.pos;
   return styles.neutral;
@@ -292,7 +297,7 @@ export default function Home() {
             <div className={styles.summaryLabel}>{text.summaryKospi}</div>
             <div
               className={`${styles.summaryValue} ${
-                lastRecord ? signedClass(lastRecord.kospiChangePct) : ""
+                lastRecord ? signedClass(lastRecord.kospiChangePct, lang) : ""
               }`}
             >
               {lastRecord ? formatPercent(lastRecord.kospiChangePct) : "--"}
@@ -302,7 +307,7 @@ export default function Home() {
             <div className={styles.summaryLabel}>{text.summaryKosdaq}</div>
             <div
               className={`${styles.summaryValue} ${
-                lastRecord ? signedClass(lastRecord.kosdaqChangePct) : ""
+                lastRecord ? signedClass(lastRecord.kosdaqChangePct, lang) : ""
               }`}
             >
               {lastRecord ? formatPercent(lastRecord.kosdaqChangePct) : "--"}
@@ -312,7 +317,7 @@ export default function Home() {
             <div className={styles.summaryLabel}>{text.summaryNasdaq}</div>
             <div
               className={`${styles.summaryValue} ${
-                lastRecord ? signedClass(lastRecord.nasdaqChangePct) : ""
+                lastRecord ? signedClass(lastRecord.nasdaqChangePct, lang) : ""
               }`}
             >
               {lastRecord ? formatPercent(lastRecord.nasdaqChangePct) : "--"}
@@ -374,6 +379,7 @@ export default function Home() {
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
                           record.kospiIndividual,
+                          lang,
                         )}`}
                       >
                         {formatNumberLocal(record.kospiIndividual)}
@@ -381,6 +387,7 @@ export default function Home() {
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
                           record.kospiForeign,
+                          lang,
                         )}`}
                       >
                         {formatNumberLocal(record.kospiForeign)}
@@ -388,6 +395,7 @@ export default function Home() {
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
                           record.kospiInstitution,
+                          lang,
                         )}`}
                       >
                         {formatNumberLocal(record.kospiInstitution)}
@@ -395,6 +403,7 @@ export default function Home() {
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
                           record.kospiChangePct,
+                          lang,
                         )}`}
                       >
                         {formatPercent(record.kospiChangePct)}
@@ -402,6 +411,7 @@ export default function Home() {
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
                           record.kosdaqIndividual,
+                          lang,
                         )}`}
                       >
                         {formatNumberLocal(record.kosdaqIndividual)}
@@ -409,6 +419,7 @@ export default function Home() {
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
                           record.kosdaqForeign,
+                          lang,
                         )}`}
                       >
                         {formatNumberLocal(record.kosdaqForeign)}
@@ -416,6 +427,7 @@ export default function Home() {
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
                           record.kosdaqInstitution,
+                          lang,
                         )}`}
                       >
                         {formatNumberLocal(record.kosdaqInstitution)}
@@ -423,6 +435,7 @@ export default function Home() {
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
                           record.kosdaqChangePct,
+                          lang,
                         )}`}
                       >
                         {formatPercent(record.kosdaqChangePct)}
@@ -430,6 +443,7 @@ export default function Home() {
                       <td
                         className={`${styles.colNasdaq} ${styles.num} ${signedClass(
                           record.nasdaqChangePct,
+                          lang,
                         )}`}
                       >
                         {formatPercent(record.nasdaqChangePct)}
@@ -437,6 +451,7 @@ export default function Home() {
                       <td
                         className={`${styles.colUsd} ${styles.num} ${signedClass(
                           record.usdkrw,
+                          lang,
                         )}`}
                       >
                         {formatRateLocal(record.usdkrw)}
