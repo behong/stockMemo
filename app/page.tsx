@@ -43,9 +43,9 @@ const COPY: Record<Language, Record<string, string>> = {
     statusRecords: "레코드",
     statusLatest: "최근",
     statusUpdated: "업데이트",
-    summaryKospi: "코스피 변동",
-    summaryKosdaq: "코스닥 변동",
-    summaryNasdaq: "나스닥 변동",
+    summaryKospi: "코스피",
+    summaryKosdaq: "코스닥",
+    summaryNasdaq: "나스닥",
     summaryUsd: "원/달러",
     tableTime: "시간",
     tableKospi: "코스피",
@@ -106,6 +106,20 @@ function signedClass(value: number, lang: Language): string {
   if (tone === "red") return styles.neg;
   if (tone === "blue") return styles.pos;
   return styles.neutral;
+}
+
+const MARKET_OPEN_MINUTES = 9 * 60;
+const MARKET_CLOSE_MINUTES = 15 * 60 + 30;
+
+function isMarketTime(value: string): boolean {
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return true;
+  }
+  const minutes = hour * 60 + minute;
+  return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
 }
 
 export default function Home() {
@@ -181,6 +195,10 @@ export default function Home() {
   };
 
   const text = COPY[lang];
+  const displayRecords = useMemo(
+    () => records.filter((record) => isMarketTime(record.time)),
+    [records],
+  );
 
   const statusLabel = useMemo(() => {
     if (status === "loading") return text.statusLoading;
@@ -194,9 +212,9 @@ export default function Home() {
     return styles.pillReady;
   }, [status]);
 
-  const lastRecord = records[records.length - 1];
+  const lastRecord = displayRecords[displayRecords.length - 1];
   const latestTime = lastRecord?.time ?? "--";
-  const recordCount = records.length;
+  const recordCount = displayRecords.length;
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(lang === "ko" ? "ko-KR" : "en-US"),
     [lang],
@@ -360,14 +378,14 @@ export default function Home() {
                 </tr>
               </thead>
               <tbody>
-                {records.length === 0 ? (
+                {displayRecords.length === 0 ? (
                   <tr>
                     <td colSpan={11} className={styles.emptyState}>
                       {text.empty}
                     </td>
                   </tr>
                 ) : (
-                  records.map((record, index) => (
+                  displayRecords.map((record, index) => (
                     <tr
                       key={`${record.date}-${record.time}`}
                       className={styles.row}
