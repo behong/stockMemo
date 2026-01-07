@@ -192,6 +192,110 @@ type YahooQuoteResponse = {
   };
 };
 
+type YahooAuth = {
+  crumb: string;
+  cookie: string;
+  expiresAt: number;
+};
+
+const YAHOO_AUTH_TTL_MS = 45 * 60 * 1000;
+let yahooAuthCache: YahooAuth | null = null;
+
+function parseYahooCrumb(html: string): string | null {
+  const match = html.match(/"CrumbStore":\{"crumb":"(.*?)"\}/);
+  if (!match) return null;
+  const raw = match[1];
+  try {
+    return JSON.parse(`"${raw}"`);
+  } catch {
+    return raw.replace(/\\u002F/g, "/").replace(/\\"/g, '"');
+  }
+}
+
+function extractCookies(setCookieHeader: string[] | string | null): string {
+  if (!setCookieHeader) return "";
+  const cookies = Array.isArray(setCookieHeader)
+    ? setCookieHeader
+    : [setCookieHeader];
+  return cookies
+    .map((cookie) => cookie.split(";")[0])
+    .filter(Boolean)
+    .join("; ");
+}
+
+async function getYahooAuth(): Promise<YahooAuth> {
+  const now = Date.now();
+  if (yahooAuthCache && yahooAuthCache.expiresAt > now) {
+    return yahooAuthCache;
+  }
+
+  const response = await fetch("https://finance.yahoo.com/quote/NQ=F", {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+      "accept-language": "en-US,en;q=0.9",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Yahoo auth request failed (${response.status}). ${text}`);
+  }
+
+  const html = await response.text();
+  const crumb = parseYahooCrumb(html);
+  if (!crumb) {
+    throw new Error("Yahoo crumb not found.");
+  }
+
+  const headers = response.headers as unknown as {
+    getSetCookie?: () => string[];
+    get: (name: string) => string | null;
+  };
+  const setCookie =
+    typeof headers.getSetCookie === "function"
+      ? headers.getSetCookie()
+      : headers.get("set-cookie");
+  const cookie = extractCookies(setCookie);
+
+  yahooAuthCache = {
+    crumb,
+    cookie,
+    expiresAt: now + YAHOO_AUTH_TTL_MS,
+  };
+
+  return yahooAuthCache;
+}
+
+async function requestYahooQuotes(
+  symbols: string[],
+  auth?: YahooAuth,
+): Promise<YahooQuoteResponse> {
+  const url = new URL("https://query1.finance.yahoo.com/v7/finance/quote");
+  url.searchParams.set("symbols", symbols.join(","));
+  url.searchParams.set("formatted", "false");
+  if (auth?.crumb) {
+    url.searchParams.set("crumb", auth.crumb);
+  }
+
+  const headers: Record<string, string> = {
+    "user-agent":
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+    "accept-language": "en-US,en;q=0.9",
+  };
+  if (auth?.cookie) {
+    headers.cookie = auth.cookie;
+  }
+
+  const response = await fetch(url.toString(), { headers, cache: "no-store" });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Yahoo quote request failed (${response.status}). ${text}`);
+  }
+  return (await response.json()) as YahooQuoteResponse;
+}
+
 async function fetchUsdKrwDaily(): Promise<number> {
   const response = await fetch(EXCHANGE_RATE_URL, { cache: "no-store" });
   if (!response.ok) {
@@ -264,18 +368,27 @@ async function fetchUsdKrwAlphaVantage(): Promise<number> {
 }
 
 async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, YahooQuote>> {
-  const url = new URL("https://query1.finance.yahoo.com/v7/finance/quote");
-  url.searchParams.set("symbols", symbols.join(","));
-  const response = await fetch(url.toString(), { cache: "no-store" });
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`Yahoo quote request failed (${response.status}). ${text}`);
+  let payload: YahooQuoteResponse | null = null;
+  let auth: YahooAuth | null = null;
+
+  try {
+    auth = await getYahooAuth();
+    payload = await requestYahooQuotes(symbols, auth);
+  } catch {
+    payload = await requestYahooQuotes(symbols);
   }
 
-  const payload = (await response.json()) as YahooQuoteResponse;
   const error = payload.quoteResponse?.error?.description;
-  if (error) {
-    throw new Error(`Yahoo quote error: ${error}`);
+  if (error && auth) {
+    yahooAuthCache = null;
+    const refreshed = await getYahooAuth();
+    payload = await requestYahooQuotes(symbols, refreshed);
+  }
+
+  if (payload.quoteResponse?.error?.description) {
+    throw new Error(
+      `Yahoo quote error: ${payload.quoteResponse.error.description}`,
+    );
   }
 
   const results = payload.quoteResponse?.result ?? [];
