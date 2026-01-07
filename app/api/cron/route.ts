@@ -6,6 +6,39 @@ import { getKstDateTime } from "@/lib/time";
 
 export const runtime = "nodejs";
 
+const TIME_ZONE = process.env.APP_TZ || process.env.TZ || "Asia/Seoul";
+const MARKET_OPEN_MINUTES = 9 * 60;
+const MARKET_CLOSE_MINUTES = 15 * 60 + 30;
+
+function getKstTimeParts(now: Date) {
+  const formatter = new Intl.DateTimeFormat("en-US", {
+    timeZone: TIME_ZONE,
+    weekday: "short",
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: false,
+  });
+  const parts = formatter.formatToParts(now);
+  const values: Record<string, string> = {};
+  for (const part of parts) {
+    if (part.type !== "literal") {
+      values[part.type] = part.value;
+    }
+  }
+  return {
+    weekday: values.weekday,
+    hour: Number(values.hour ?? "0"),
+    minute: Number(values.minute ?? "0"),
+  };
+}
+
+function isTradingWindow(now: Date): boolean {
+  const { weekday, hour, minute } = getKstTimeParts(now);
+  if (weekday === "Sat" || weekday === "Sun") return false;
+  const minutes = hour * 60 + minute;
+  return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
+}
+
 function isAuthorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return true;
@@ -19,7 +52,11 @@ export async function GET(request: Request) {
   }
 
   try {
-    const { date, time } = getKstDateTime();
+    const now = new Date();
+    const { date, time } = getKstDateTime(now);
+    if (!isTradingWindow(now)) {
+      return NextResponse.json({ ok: true, skipped: true, date, time });
+    }
     const data = await fetchMarketData();
 
     const payload = {
