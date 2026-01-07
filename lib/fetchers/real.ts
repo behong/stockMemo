@@ -364,7 +364,9 @@ async function fetchNasdaqYahoo(): Promise<number> {
 
   const changePercent = parseNumber(quote.regularMarketChangePercent);
   if (Number.isFinite(changePercent) && changePercent !== 0) {
-    return changePercent;
+    const scaled =
+      Math.abs(changePercent) <= 1 ? changePercent * 100 : changePercent;
+    return scaled;
   }
 
   const price = parseNumber(quote.regularMarketPrice);
