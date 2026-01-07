@@ -1,5 +1,6 @@
 import type { MarketData, MarketSnapshot } from "./types";
 import { kisGet } from "@/lib/kis";
+import { getKstDate } from "@/lib/time";
 
 type InvestorTrendOutput = {
   frgn_ntby_tr_pbmn: string;
@@ -7,15 +8,51 @@ type InvestorTrendOutput = {
   orgn_ntby_tr_pbmn: string;
 };
 
+type OverseasDailyOutput = {
+  ovrs_nmix_prpr?: string;
+  ovrs_nmix_prdy_clpr?: string;
+  prdy_ctrt?: string;
+};
+
+type IndexTimeOutput = {
+  bstp_nmix_prdy_ctrt?: string;
+};
+
 const INVESTOR_TREND_PATH =
   "/uapi/domestic-stock/v1/quotations/inquire-investor-time-by-market";
 const INVESTOR_TREND_TR_ID = "FHPTJ04030000";
+const INDEX_TIME_PATH =
+  "/uapi/domestic-stock/v1/quotations/inquire-index-timeprice";
+const INDEX_TIME_TR_ID = "FHPUP02110200";
+const OVERSEAS_DAILY_PATH =
+  "/uapi/overseas-price/v1/quotations/inquire-daily-chartprice";
+const OVERSEAS_DAILY_TR_ID = "FHKST03030100";
+const EXCHANGE_RATE_URL =
+  process.env.EXCHANGE_RATE_URL || "https://open.er-api.com/v6/latest/USD";
+const INDEX_START_TIME = process.env.KIS_INDEX_START_TIME || "090000";
+const INDEX_MARKET_CODE =
+  (process.env.KIS_INDEX_MARKET_CODE || "U").toUpperCase();
 
 function parseNumber(value: string | number | null | undefined): number {
   if (value === null || value === undefined) return 0;
   const text = String(value).replace(/,/g, "");
   const parsed = Number(text);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function toKisDate(value: string): string {
+  return value.replace(/-/g, "");
+}
+
+function getDateRange(daysBack: number) {
+  const end = getKstDate();
+  const startDate = new Date();
+  startDate.setDate(startDate.getDate() - daysBack);
+  const start = getKstDate(startDate);
+  return {
+    start: toKisDate(start),
+    end: toKisDate(end),
+  };
 }
 
 async function fetchInvestorTrend(
@@ -50,16 +87,112 @@ async function fetchInvestorTrend(
   };
 }
 
+async function fetchIndexChangePct(sectorCode: string): Promise<number> {
+  const output = await kisGet<IndexTimeOutput | IndexTimeOutput[]>(
+    INDEX_TIME_PATH,
+    INDEX_TIME_TR_ID,
+    {
+      fid_cond_mrkt_div_code: INDEX_MARKET_CODE,
+      fid_input_iscd: sectorCode,
+      fid_input_hour_1: INDEX_START_TIME,
+    },
+  );
+
+  const latest = Array.isArray(output)
+    ? output[output.length - 1]
+    : output;
+  if (!latest) {
+    throw new Error("Index time response is empty.");
+  }
+
+  return parseNumber(latest.bstp_nmix_prdy_ctrt);
+}
+
+async function fetchOverseasDaily(
+  marketCode: "N" | "X",
+  symbol: string,
+) {
+  const { start, end } = getDateRange(7);
+  const output = await kisGet<OverseasDailyOutput>(
+    OVERSEAS_DAILY_PATH,
+    OVERSEAS_DAILY_TR_ID,
+    {
+      FID_COND_MRKT_DIV_CODE: marketCode,
+      FID_INPUT_ISCD: symbol,
+      FID_INPUT_DATE_1: start,
+      FID_INPUT_DATE_2: end,
+      FID_PERIOD_DIV_CODE: "D",
+    },
+  );
+
+  const current = parseNumber(output.ovrs_nmix_prpr);
+  const prevClose = parseNumber(output.ovrs_nmix_prdy_clpr);
+  const fallbackPct = parseNumber(output.prdy_ctrt);
+  const changePct =
+    prevClose !== 0 ? ((current - prevClose) / prevClose) * 100 : fallbackPct;
+
+  return {
+    current,
+    prevClose,
+    changePct,
+  };
+}
+
+type ExchangeRateResponse = {
+  result?: string;
+  success?: boolean;
+  rates?: {
+    KRW?: number;
+  };
+};
+
+async function fetchUsdKrw(): Promise<number> {
+  const response = await fetch(EXCHANGE_RATE_URL, { cache: "no-store" });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Exchange rate request failed (${response.status}). ${text}`);
+  }
+
+  const payload = (await response.json()) as ExchangeRateResponse;
+  if (payload.result && payload.result !== "success") {
+    throw new Error(`Exchange rate request failed: ${payload.result}`);
+  }
+  const rate = payload.rates?.KRW;
+  if (!rate || !Number.isFinite(rate)) {
+    throw new Error("Exchange rate response missing KRW rate.");
+  }
+
+  return rate;
+}
+
 export async function fetchRealData(): Promise<MarketData> {
-  const [kospi, kosdaq] = await Promise.all([
+  const nasdaqCode = process.env.KIS_NASDAQ_CODE;
+  if (!nasdaqCode) {
+    throw new Error("KIS_NASDAQ_CODE is not set.");
+  }
+
+  const [kospi, kosdaq, kospiChangePct, kosdaqChangePct] = await Promise.all([
     fetchInvestorTrend("KSP", "0001"),
     fetchInvestorTrend("KSQ", "1001"),
+    fetchIndexChangePct("0001"),
+    fetchIndexChangePct("1001"),
+  ]);
+
+  const [nasdaq, usdkrw] = await Promise.all([
+    fetchOverseasDaily("N", nasdaqCode),
+    fetchUsdKrw(),
   ]);
 
   return {
-    kospi,
-    kosdaq,
-    nasdaqChangePct: 0,
-    usdkrw: 0,
+    kospi: {
+      ...kospi,
+      changePct: kospiChangePct,
+    },
+    kosdaq: {
+      ...kosdaq,
+      changePct: kosdaqChangePct,
+    },
+    nasdaqChangePct: nasdaq.changePct,
+    usdkrw,
   };
 }

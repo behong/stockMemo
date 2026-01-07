@@ -12,11 +12,15 @@ type KisTokenResponse = {
 type KisResponse<T> = {
   output?: T;
   output1?: T;
+  output2?: unknown;
   rt_cd?: string;
   msg1?: string;
 };
 
-const globalForKis = globalThis as unknown as { kisToken?: TokenCache };
+const globalForKis = globalThis as unknown as {
+  kisToken?: TokenCache;
+  kisTokenPromise?: Promise<TokenCache>;
+};
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
@@ -30,6 +34,14 @@ async function requestToken(): Promise<TokenCache> {
   const baseUrl = getRequiredEnv("KIS_BASE_URL");
   const appKey = getRequiredEnv("KIS_APP_KEY");
   const appSecret = getRequiredEnv("KIS_APP_SECRET");
+  const debug =
+    process.env.KIS_DEBUG === "1" || process.env.KIS_DEBUG === "true";
+
+  if (debug) {
+    console.log(
+      `[KIS] token request base=${baseUrl} keyLen=${appKey.length} secretLen=${appSecret.length}`,
+    );
+  }
 
   const response = await fetch(`${baseUrl}/oauth2/tokenP`, {
     method: "POST",
@@ -62,9 +74,17 @@ async function getAccessToken(): Promise<string> {
     return cached.accessToken;
   }
 
-  const token = await requestToken();
-  globalForKis.kisToken = token;
-  return token.accessToken;
+  if (!globalForKis.kisTokenPromise) {
+    globalForKis.kisTokenPromise = requestToken();
+  }
+
+  try {
+    const token = await globalForKis.kisTokenPromise;
+    globalForKis.kisToken = token;
+    return token.accessToken;
+  } finally {
+    globalForKis.kisTokenPromise = undefined;
+  }
 }
 
 export async function kisGet<T>(
@@ -72,6 +92,8 @@ export async function kisGet<T>(
   trId: string,
   query: Record<string, string>,
 ): Promise<T> {
+  const debug =
+    process.env.KIS_DEBUG === "1" || process.env.KIS_DEBUG === "true";
   const baseUrl = getRequiredEnv("KIS_BASE_URL");
   const appKey = getRequiredEnv("KIS_APP_KEY");
   const appSecret = getRequiredEnv("KIS_APP_SECRET");
@@ -102,6 +124,27 @@ export async function kisGet<T>(
   const payload = (await response.json()) as KisResponse<T>;
   if (payload.rt_cd && payload.rt_cd !== "0") {
     throw new Error(payload.msg1 || "KIS request failed.");
+  }
+
+  if (debug) {
+    const outputValue = payload.output ?? payload.output1 ?? null;
+    const outputKeys =
+      outputValue && typeof outputValue === "object"
+        ? Object.keys(outputValue as Record<string, unknown>)
+        : [];
+    const output2Info = Array.isArray(payload.output2)
+      ? `array(${payload.output2.length})`
+      : payload.output2
+        ? "object"
+        : "none";
+    console.log(
+      `[KIS] ${trId} ${path} query=${JSON.stringify(query)} rt_cd=${payload.rt_cd ?? "?"}`,
+    );
+    console.log(`[KIS] output keys=${outputKeys.join(",")}`);
+    if (outputValue) {
+      console.log(`[KIS] output sample=${JSON.stringify(outputValue)}`);
+    }
+    console.log(`[KIS] output2=${output2Info}`);
   }
 
   const output = payload.output ?? payload.output1;
