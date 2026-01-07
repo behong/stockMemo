@@ -29,6 +29,8 @@ const OVERSEAS_DAILY_PATH =
 const OVERSEAS_DAILY_TR_ID = "FHKST03030100";
 const EXCHANGE_RATE_URL =
   process.env.EXCHANGE_RATE_URL || "https://open.er-api.com/v6/latest/USD";
+const FX_PROVIDER = (process.env.FX_PROVIDER || "er-api").toLowerCase();
+const FX_INTERVAL = process.env.FX_INTERVAL || "5min";
 const INDEX_START_TIME = process.env.KIS_INDEX_START_TIME || "090000";
 const INDEX_MARKET_CODE =
   (process.env.KIS_INDEX_MARKET_CODE || "U").toUpperCase();
@@ -146,7 +148,13 @@ type ExchangeRateResponse = {
   };
 };
 
-async function fetchUsdKrw(): Promise<number> {
+type AlphaVantageResponse = {
+  Note?: string;
+  "Error Message"?: string;
+  [key: string]: unknown;
+};
+
+async function fetchUsdKrwDaily(): Promise<number> {
   const response = await fetch(EXCHANGE_RATE_URL, { cache: "no-store" });
   if (!response.ok) {
     const text = await response.text();
@@ -163,6 +171,65 @@ async function fetchUsdKrw(): Promise<number> {
   }
 
   return rate;
+}
+
+async function fetchUsdKrwAlphaVantage(): Promise<number> {
+  const apiKey = process.env.ALPHAVANTAGE_API_KEY;
+  if (!apiKey) {
+    throw new Error("ALPHAVANTAGE_API_KEY is not set.");
+  }
+
+  const url = new URL("https://www.alphavantage.co/query");
+  url.searchParams.set("function", "FX_INTRADAY");
+  url.searchParams.set("from_symbol", "USD");
+  url.searchParams.set("to_symbol", "KRW");
+  url.searchParams.set("interval", FX_INTERVAL);
+  url.searchParams.set("apikey", apiKey);
+
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`FX intraday request failed (${response.status}). ${text}`);
+  }
+
+  const payload = (await response.json()) as AlphaVantageResponse;
+  if (payload["Error Message"]) {
+    throw new Error(String(payload["Error Message"]));
+  }
+  if (payload.Note) {
+    throw new Error(String(payload.Note));
+  }
+
+  const seriesKey = Object.keys(payload).find((key) =>
+    key.startsWith("Time Series FX"),
+  );
+  if (!seriesKey) {
+    throw new Error("FX intraday response missing time series.");
+  }
+
+  const series = payload[seriesKey];
+  if (!series || typeof series !== "object") {
+    throw new Error("FX intraday time series is invalid.");
+  }
+
+  const entries = Object.keys(series as Record<string, unknown>).sort();
+  const latestKey = entries[entries.length - 1];
+  const latest = latestKey
+    ? (series as Record<string, Record<string, string>>)[latestKey]
+    : null;
+  const close = parseNumber(latest?.["4. close"]);
+  if (!close) {
+    throw new Error("FX intraday response missing close value.");
+  }
+
+  return close;
+}
+
+async function fetchUsdKrw(): Promise<number> {
+  if (FX_PROVIDER === "alphavantage" || FX_PROVIDER === "alpha-vantage") {
+    return fetchUsdKrwAlphaVantage();
+  }
+  return fetchUsdKrwDaily();
 }
 
 export async function fetchRealData(): Promise<MarketData> {
