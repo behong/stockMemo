@@ -175,12 +175,17 @@ type AlphaVantageQuoteResponse = AlphaVantageResponse & {
   "Global Quote"?: AlphaVantageQuote;
 };
 
+type YahooValue = {
+  raw?: number | string;
+  fmt?: string;
+};
+
 type YahooQuote = {
   symbol?: string;
-  regularMarketPrice?: number;
-  regularMarketPreviousClose?: number;
-  regularMarketChangePercent?: number;
-  regularMarketOpen?: number;
+  regularMarketPrice?: number | string | YahooValue;
+  regularMarketPreviousClose?: number | string | YahooValue;
+  regularMarketChangePercent?: number | string | YahooValue;
+  regularMarketOpen?: number | string | YahooValue;
 };
 
 type YahooQuoteResponse = {
@@ -210,6 +215,32 @@ function parseYahooCrumb(html: string): string | null {
   } catch {
     return raw.replace(/\\u002F/g, "/").replace(/\\"/g, '"');
   }
+}
+
+function parseYahooNumber(value?: number | string | YahooValue): number {
+  if (!value) return 0;
+  if (typeof value === "object") {
+    if (value.raw !== undefined) return parseNumber(value.raw);
+    if (value.fmt !== undefined) return parseNumber(value.fmt);
+    return 0;
+  }
+  return parseNumber(value);
+}
+
+function parseYahooPercent(value?: number | string | YahooValue): number {
+  if (!value) return 0;
+  if (typeof value === "object") {
+    if (value.fmt) {
+      return parsePercent(value.fmt);
+    }
+    if (value.raw !== undefined) {
+      const raw = parseNumber(value.raw);
+      return Math.abs(raw) < 1 ? raw * 100 : raw;
+    }
+    return 0;
+  }
+  const raw = parseNumber(value);
+  return Math.abs(raw) < 1 ? raw * 100 : raw;
 }
 
 function extractCookies(setCookieHeader: string[] | string | null): string {
@@ -274,7 +305,7 @@ async function requestYahooQuotes(
 ): Promise<YahooQuoteResponse> {
   const url = new URL("https://query1.finance.yahoo.com/v7/finance/quote");
   url.searchParams.set("symbols", symbols.join(","));
-  url.searchParams.set("formatted", "false");
+  url.searchParams.set("formatted", "true");
   if (auth?.crumb) {
     url.searchParams.set("crumb", auth.crumb);
   }
@@ -407,7 +438,7 @@ async function fetchUsdKrwYahoo(): Promise<number> {
   if (!quote) {
     throw new Error("Yahoo FX quote missing.");
   }
-  const price = parseNumber(quote.regularMarketPrice);
+  const price = parseYahooNumber(quote.regularMarketPrice);
   if (!price) {
     throw new Error("Yahoo FX quote missing price.");
   }
@@ -475,18 +506,18 @@ async function fetchNasdaqYahoo(): Promise<number> {
     throw new Error("Yahoo Nasdaq quote missing.");
   }
 
-  const changePercent = parseNumber(quote.regularMarketChangePercent);
+  const changePercent = parseYahooPercent(quote.regularMarketChangePercent);
   if (Number.isFinite(changePercent) && changePercent !== 0) {
-    return Math.abs(changePercent) < 1 ? changePercent * 100 : changePercent;
+    return changePercent;
   }
 
-  const price = parseNumber(quote.regularMarketPrice);
-  const prevClose = parseNumber(quote.regularMarketPreviousClose);
+  const price = parseYahooNumber(quote.regularMarketPrice);
+  const prevClose = parseYahooNumber(quote.regularMarketPreviousClose);
   if (price && prevClose) {
     return ((price - prevClose) / prevClose) * 100;
   }
 
-  const open = parseNumber(quote.regularMarketOpen);
+  const open = parseYahooNumber(quote.regularMarketOpen);
   if (price && open) {
     return ((price - open) / open) * 100;
   }
