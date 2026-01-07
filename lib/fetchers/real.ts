@@ -475,15 +475,15 @@ async function fetchNasdaqYahoo(): Promise<number> {
     throw new Error("Yahoo Nasdaq quote missing.");
   }
 
+  const changePercent = parseNumber(quote.regularMarketChangePercent);
+  if (Number.isFinite(changePercent) && changePercent !== 0) {
+    return Math.abs(changePercent) < 1 ? changePercent * 100 : changePercent;
+  }
+
   const price = parseNumber(quote.regularMarketPrice);
   const prevClose = parseNumber(quote.regularMarketPreviousClose);
   if (price && prevClose) {
     return ((price - prevClose) / prevClose) * 100;
-  }
-
-  const changePercent = parseNumber(quote.regularMarketChangePercent);
-  if (Number.isFinite(changePercent) && changePercent !== 0) {
-    return Math.abs(changePercent) < 1 ? changePercent * 100 : changePercent;
   }
 
   const open = parseNumber(quote.regularMarketOpen);
