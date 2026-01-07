@@ -55,9 +55,23 @@
 .hero {
   display: flex;
   flex-wrap: wrap;
+  gap: 20px;
   align-items: flex-end;
   justify-content: space-between;
-  gap: 24px;
+  position: relative;
+  padding-top: 44px;
+}
+
+.heroText {
+  flex: 1 1 320px;
+}
+
+.langTop {
+  display: flex;
+  align-items: flex-start;
+  position: absolute;
+  top: 0;
+  right: 0;
 }
 
 .title {
@@ -78,6 +92,33 @@
   flex-wrap: wrap;
   gap: 12px;
   align-items: center;
+}
+
+.langToggle {
+  display: inline-flex;
+  gap: 6px;
+  padding: 4px;
+  border-radius: 999px;
+  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.7);
+}
+
+.langButton {
+  padding: 6px 12px;
+  border-radius: 999px;
+  border: none;
+  background: transparent;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  cursor: pointer;
+}
+
+.langActive {
+  background: var(--cream);
+  color: var(--ink);
+  box-shadow: inset 0 0 0 1px rgba(27, 26, 20, 0.08);
 }
 
 .dateControl {
@@ -327,6 +368,17 @@
 @media (max-width: 720px) {
   .page {
     padding: 40px 16px 70px;
+  }
+
+  .hero {
+    padding-top: 0;
+  }
+
+  .langTop {
+    position: static;
+    width: 100%;
+    justify-content: flex-end;
+    order: -1;
   }
 
   .title {

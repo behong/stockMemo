@@ -3,7 +3,7 @@
 import type { ChangeEvent, CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
-import { formatNumber, formatPercent, getSignedColor } from "@/lib/format";
+import { formatPercent, getSignedColor } from "@/lib/format";
 
 import styles from "./page.module.css";
 
@@ -27,14 +27,74 @@ type RecordsResponse = {
   records: RecordRow[];
 };
 
-const rateFormatter = new Intl.NumberFormat("ko-KR", {
-  minimumFractionDigits: 2,
-  maximumFractionDigits: 2,
-});
+type Language = "ko" | "en";
 
-function formatRate(value: number): string {
-  return rateFormatter.format(value);
-}
+const COPY: Record<Language, Record<string, string>> = {
+  ko: {
+    title: "스톡 메모",
+    subtitle:
+      "코스피/코스닥 수급과 환율을 시간대별로 기록합니다. 날짜를 선택해 흐름을 한 번에 확인하세요.",
+    date: "날짜",
+    refresh: "새로고침",
+    statusReady: "준비됨",
+    statusLoading: "불러오는 중",
+    statusError: "오류",
+    statusDate: "날짜",
+    statusRecords: "레코드",
+    statusLatest: "최근",
+    statusUpdated: "업데이트",
+    summaryKospi: "코스피 변동",
+    summaryKosdaq: "코스닥 변동",
+    summaryNasdaq: "나스닥 변동",
+    summaryUsd: "원/달러",
+    tableTime: "시간",
+    tableKospi: "코스피",
+    tableKosdaq: "코스닥",
+    tableNasdaq: "나스닥",
+    tableUsd: "원/달러",
+    tableIndiv: "개인",
+    tableForeign: "외인",
+    tableInst: "기관",
+    tableChange: "변동 %",
+    tableRate: "환율",
+    empty: "해당 날짜에 데이터가 없습니다.",
+    languageLabel: "언어",
+    langKo: "한국어",
+    langEn: "영어",
+  },
+  en: {
+    title: "Stock Memo",
+    subtitle:
+      "Hourly snapshots for KOSPI/KOSDAQ flows and FX. Pick a date to review the series in one view.",
+    date: "Date",
+    refresh: "Refresh",
+    statusReady: "Ready",
+    statusLoading: "Loading",
+    statusError: "Error",
+    statusDate: "Date",
+    statusRecords: "Records",
+    statusLatest: "Latest",
+    statusUpdated: "Updated",
+    summaryKospi: "KOSPI Change",
+    summaryKosdaq: "KOSDAQ Change",
+    summaryNasdaq: "NASDAQ Change",
+    summaryUsd: "USD/KRW",
+    tableTime: "Time",
+    tableKospi: "KOSPI",
+    tableKosdaq: "KOSDAQ",
+    tableNasdaq: "NASDAQ",
+    tableUsd: "USD/KRW",
+    tableIndiv: "Indiv",
+    tableForeign: "Foreign",
+    tableInst: "Inst",
+    tableChange: "Change %",
+    tableRate: "Rate",
+    empty: "No records for this date.",
+    languageLabel: "Language",
+    langKo: "Korean",
+    langEn: "English",
+  },
+};
 
 function signedClass(value: number): string {
   const tone = getSignedColor(value);
@@ -49,6 +109,7 @@ export default function Home() {
   const [status, setStatus] = useState<"idle" | "loading" | "error">("idle");
   const [errorMessage, setErrorMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
+  const [lang, setLang] = useState<Language>("ko");
 
   const loadRecords = useCallback(async (requestedDate?: string) => {
     setStatus("loading");
@@ -85,6 +146,23 @@ export default function Home() {
     loadRecords();
   }, [loadRecords]);
 
+  useEffect(() => {
+    const stored =
+      typeof window !== "undefined" ? localStorage.getItem("lang") : null;
+    if (stored === "ko" || stored === "en") {
+      setLang(stored);
+      return;
+    }
+    const browser = navigator.language.toLowerCase();
+    setLang(browser.startsWith("ko") ? "ko" : "en");
+  }, []);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("lang", lang);
+    }
+  }, [lang]);
+
   const handleDateChange = (event: ChangeEvent<HTMLInputElement>) => {
     const value = event.target.value;
     setDate(value);
@@ -97,11 +175,13 @@ export default function Home() {
     loadRecords(date || undefined);
   };
 
+  const text = COPY[lang];
+
   const statusLabel = useMemo(() => {
-    if (status === "loading") return "Loading";
-    if (status === "error") return "Error";
-    return "Ready";
-  }, [status]);
+    if (status === "loading") return text.statusLoading;
+    if (status === "error") return text.statusError;
+    return text.statusReady;
+  }, [status, text]);
 
   const statusClass = useMemo(() => {
     if (status === "loading") return styles.pillLoading;
@@ -112,27 +192,38 @@ export default function Home() {
   const lastRecord = records[records.length - 1];
   const latestTime = lastRecord?.time ?? "--";
   const recordCount = records.length;
+  const numberFormatter = useMemo(
+    () => new Intl.NumberFormat(lang === "ko" ? "ko-KR" : "en-US"),
+    [lang],
+  );
+  const rateFormatter = useMemo(
+    () =>
+      new Intl.NumberFormat(lang === "ko" ? "ko-KR" : "en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      }),
+    [lang],
+  );
   const lastUpdatedLabel = lastUpdated
-    ? lastUpdated.toLocaleTimeString("en-GB", {
+    ? lastUpdated.toLocaleTimeString(lang === "ko" ? "ko-KR" : "en-GB", {
         hour: "2-digit",
         minute: "2-digit",
       })
     : "--";
+  const formatNumberLocal = (value: number) => numberFormatter.format(value);
+  const formatRateLocal = (value: number) => rateFormatter.format(value);
 
   return (
     <div className={styles.page}>
       <main className={styles.main}>
         <section className={styles.hero}>
-          <div>
-            <h1 className={styles.title}>Stock Memo</h1>
-            <p className={styles.subtitle}>
-              Hourly market snapshots with KOSPI/KOSDAQ flow and FX tracking.
-              Pick a date to review time-series data in one view.
-            </p>
+          <div className={styles.heroText}>
+            <h1 className={styles.title}>{text.title}</h1>
+            <p className={styles.subtitle}>{text.subtitle}</p>
           </div>
           <div className={styles.controls}>
             <label className={styles.dateControl}>
-              Date
+              {text.date}
               <input
                 className={styles.dateInput}
                 type="date"
@@ -146,17 +237,51 @@ export default function Home() {
               onClick={handleRefresh}
               disabled={status === "loading"}
             >
-              Refresh
+              {text.refresh}
             </button>
+          </div>
+          <div className={styles.langTop}>
+            <div
+              className={styles.langToggle}
+              role="group"
+              aria-label={text.languageLabel}
+            >
+              <button
+                type="button"
+                className={`${styles.langButton} ${
+                  lang === "ko" ? styles.langActive : ""
+                }`}
+                onClick={() => setLang("ko")}
+              >
+                {text.langKo}
+              </button>
+              <button
+                type="button"
+                className={`${styles.langButton} ${
+                  lang === "en" ? styles.langActive : ""
+                }`}
+                onClick={() => setLang("en")}
+              >
+                {text.langEn}
+              </button>
+            </div>
           </div>
         </section>
 
         <section className={styles.statusRow}>
           <span className={`${styles.pill} ${statusClass}`}>{statusLabel}</span>
-          <span className={styles.pill}>Date: {date || "--"}</span>
-          <span className={styles.pill}>Records: {recordCount}</span>
-          <span className={styles.pill}>Latest: {latestTime}</span>
-          <span className={styles.pill}>Updated: {lastUpdatedLabel}</span>
+          <span className={styles.pill}>
+            {text.statusDate}: {date || "--"}
+          </span>
+          <span className={styles.pill}>
+            {text.statusRecords}: {recordCount}
+          </span>
+          <span className={styles.pill}>
+            {text.statusLatest}: {latestTime}
+          </span>
+          <span className={styles.pill}>
+            {text.statusUpdated}: {lastUpdatedLabel}
+          </span>
           {status === "error" && (
             <span className={styles.errorText}>{errorMessage}</span>
           )}
@@ -164,7 +289,7 @@ export default function Home() {
 
         <section className={styles.summary}>
           <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>KOSPI Change</div>
+            <div className={styles.summaryLabel}>{text.summaryKospi}</div>
             <div
               className={`${styles.summaryValue} ${
                 lastRecord ? signedClass(lastRecord.kospiChangePct) : ""
@@ -174,7 +299,7 @@ export default function Home() {
             </div>
           </div>
           <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>KOSDAQ Change</div>
+            <div className={styles.summaryLabel}>{text.summaryKosdaq}</div>
             <div
               className={`${styles.summaryValue} ${
                 lastRecord ? signedClass(lastRecord.kosdaqChangePct) : ""
@@ -184,7 +309,7 @@ export default function Home() {
             </div>
           </div>
           <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>NASDAQ Change</div>
+            <div className={styles.summaryLabel}>{text.summaryNasdaq}</div>
             <div
               className={`${styles.summaryValue} ${
                 lastRecord ? signedClass(lastRecord.nasdaqChangePct) : ""
@@ -194,9 +319,9 @@ export default function Home() {
             </div>
           </div>
           <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>USD/KRW</div>
+            <div className={styles.summaryLabel}>{text.summaryUsd}</div>
             <div className={styles.summaryValue}>
-              {lastRecord ? formatRate(lastRecord.usdkrw) : "--"}
+              {lastRecord ? formatRateLocal(lastRecord.usdkrw) : "--"}
             </div>
           </div>
         </section>
@@ -206,34 +331,34 @@ export default function Home() {
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th rowSpan={2}>Time</th>
+                  <th rowSpan={2}>{text.tableTime}</th>
                   <th colSpan={4} className={styles.groupKospi}>
-                    Kospi
+                    {text.tableKospi}
                   </th>
                   <th colSpan={4} className={styles.groupKosdaq}>
-                    Kosdaq
+                    {text.tableKosdaq}
                   </th>
-                  <th className={styles.groupNasdaq}>Nasdaq</th>
-                  <th className={styles.groupUsd}>USD/KRW</th>
+                  <th className={styles.groupNasdaq}>{text.tableNasdaq}</th>
+                  <th className={styles.groupUsd}>{text.tableUsd}</th>
                 </tr>
                 <tr>
-                  <th className={styles.groupKospi}>Indiv</th>
-                  <th className={styles.groupKospi}>Foreign</th>
-                  <th className={styles.groupKospi}>Inst</th>
-                  <th className={styles.groupKospi}>Change %</th>
-                  <th className={styles.groupKosdaq}>Indiv</th>
-                  <th className={styles.groupKosdaq}>Foreign</th>
-                  <th className={styles.groupKosdaq}>Inst</th>
-                  <th className={styles.groupKosdaq}>Change %</th>
-                  <th className={styles.groupNasdaq}>Change %</th>
-                  <th className={styles.groupUsd}>Rate</th>
+                  <th className={styles.groupKospi}>{text.tableIndiv}</th>
+                  <th className={styles.groupKospi}>{text.tableForeign}</th>
+                  <th className={styles.groupKospi}>{text.tableInst}</th>
+                  <th className={styles.groupKospi}>{text.tableChange}</th>
+                  <th className={styles.groupKosdaq}>{text.tableIndiv}</th>
+                  <th className={styles.groupKosdaq}>{text.tableForeign}</th>
+                  <th className={styles.groupKosdaq}>{text.tableInst}</th>
+                  <th className={styles.groupKosdaq}>{text.tableChange}</th>
+                  <th className={styles.groupNasdaq}>{text.tableChange}</th>
+                  <th className={styles.groupUsd}>{text.tableRate}</th>
                 </tr>
               </thead>
               <tbody>
                 {records.length === 0 ? (
                   <tr>
                     <td colSpan={11} className={styles.emptyState}>
-                      No records for this date.
+                      {text.empty}
                     </td>
                   </tr>
                 ) : (
@@ -251,21 +376,21 @@ export default function Home() {
                           record.kospiIndividual,
                         )}`}
                       >
-                        {formatNumber(record.kospiIndividual)}
+                        {formatNumberLocal(record.kospiIndividual)}
                       </td>
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
                           record.kospiForeign,
                         )}`}
                       >
-                        {formatNumber(record.kospiForeign)}
+                        {formatNumberLocal(record.kospiForeign)}
                       </td>
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
                           record.kospiInstitution,
                         )}`}
                       >
-                        {formatNumber(record.kospiInstitution)}
+                        {formatNumberLocal(record.kospiInstitution)}
                       </td>
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
@@ -279,21 +404,21 @@ export default function Home() {
                           record.kosdaqIndividual,
                         )}`}
                       >
-                        {formatNumber(record.kosdaqIndividual)}
+                        {formatNumberLocal(record.kosdaqIndividual)}
                       </td>
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
                           record.kosdaqForeign,
                         )}`}
                       >
-                        {formatNumber(record.kosdaqForeign)}
+                        {formatNumberLocal(record.kosdaqForeign)}
                       </td>
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
                           record.kosdaqInstitution,
                         )}`}
                       >
-                        {formatNumber(record.kosdaqInstitution)}
+                        {formatNumberLocal(record.kosdaqInstitution)}
                       </td>
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
@@ -314,7 +439,7 @@ export default function Home() {
                           record.usdkrw,
                         )}`}
                       >
-                        {formatRate(record.usdkrw)}
+                        {formatRateLocal(record.usdkrw)}
                       </td>
                     </tr>
                   ))

@@ -21,8 +21,8 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Stock Memo Dashboard",
-  description: "Hourly market snapshots with quick date filtering.",
+  title: "스톡 메모 대시보드",
+  description: "시간대별 시장 데이터를 한눈에 확인하세요.",
 };
 
 export default function RootLayout({
