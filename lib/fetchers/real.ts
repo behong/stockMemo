@@ -31,6 +31,9 @@ const EXCHANGE_RATE_URL =
   process.env.EXCHANGE_RATE_URL || "https://open.er-api.com/v6/latest/USD";
 const FX_PROVIDER = (process.env.FX_PROVIDER || "er-api").toLowerCase();
 const FX_INTERVAL = process.env.FX_INTERVAL || "5min";
+const NASDAQ_PROVIDER = (process.env.NASDAQ_PROVIDER || "kis-daily").toLowerCase();
+const NASDAQ_INTRADAY_SYMBOL = process.env.NASDAQ_INTRADAY_SYMBOL || "QQQ";
+const NASDAQ_INTERVAL = process.env.NASDAQ_INTERVAL || "5min";
 const INDEX_START_TIME = process.env.KIS_INDEX_START_TIME || "090000";
 const INDEX_MARKET_CODE =
   (process.env.KIS_INDEX_MARKET_CODE || "U").toUpperCase();
@@ -232,12 +235,82 @@ async function fetchUsdKrw(): Promise<number> {
   return fetchUsdKrwDaily();
 }
 
-export async function fetchRealData(): Promise<MarketData> {
+async function fetchNasdaqIntraday(): Promise<number> {
+  const apiKey = process.env.ALPHAVANTAGE_API_KEY;
+  if (!apiKey) {
+    throw new Error("ALPHAVANTAGE_API_KEY is not set.");
+  }
+
+  const url = new URL("https://www.alphavantage.co/query");
+  url.searchParams.set("function", "TIME_SERIES_INTRADAY");
+  url.searchParams.set("symbol", NASDAQ_INTRADAY_SYMBOL);
+  url.searchParams.set("interval", NASDAQ_INTERVAL);
+  url.searchParams.set("apikey", apiKey);
+
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`NASDAQ intraday request failed (${response.status}). ${text}`);
+  }
+
+  const payload = (await response.json()) as AlphaVantageResponse;
+  if (payload["Error Message"]) {
+    throw new Error(String(payload["Error Message"]));
+  }
+  if (payload.Note) {
+    throw new Error(String(payload.Note));
+  }
+
+  const seriesKey = Object.keys(payload).find((key) =>
+    key.startsWith("Time Series"),
+  );
+  if (!seriesKey) {
+    throw new Error("NASDAQ intraday response missing time series.");
+  }
+
+  const series = payload[seriesKey];
+  if (!series || typeof series !== "object") {
+    throw new Error("NASDAQ intraday time series is invalid.");
+  }
+
+  const timestamps = Object.keys(series as Record<string, unknown>).sort();
+  const latestTimestamp = timestamps[timestamps.length - 1];
+  if (!latestTimestamp) {
+    throw new Error("NASDAQ intraday time series is empty.");
+  }
+  const latestDate = latestTimestamp.slice(0, 10);
+  const dayTimestamps = timestamps.filter((ts) => ts.startsWith(latestDate));
+  const firstTimestamp = dayTimestamps[0];
+  if (!firstTimestamp) {
+    throw new Error("NASDAQ intraday data missing latest day.");
+  }
+
+  const daySeries = series as Record<string, Record<string, string>>;
+  const firstBar = daySeries[firstTimestamp];
+  const latestBar = daySeries[latestTimestamp];
+  const open = parseNumber(firstBar?.["1. open"]);
+  const close = parseNumber(latestBar?.["4. close"]);
+  if (!open) {
+    throw new Error("NASDAQ intraday open price missing.");
+  }
+
+  return ((close - open) / open) * 100;
+}
+
+async function fetchNasdaqChangePct(): Promise<number> {
+  if (NASDAQ_PROVIDER === "alphavantage" || NASDAQ_PROVIDER === "alpha-vantage") {
+    return fetchNasdaqIntraday();
+  }
+
   const nasdaqCode = process.env.KIS_NASDAQ_CODE;
   if (!nasdaqCode) {
     throw new Error("KIS_NASDAQ_CODE is not set.");
   }
+  const nasdaq = await fetchOverseasDaily("N", nasdaqCode);
+  return nasdaq.changePct;
+}
 
+export async function fetchRealData(): Promise<MarketData> {
   const [kospi, kosdaq, kospiChangePct, kosdaqChangePct] = await Promise.all([
     fetchInvestorTrend("KSP", "0001"),
     fetchInvestorTrend("KSQ", "1001"),
@@ -245,8 +318,8 @@ export async function fetchRealData(): Promise<MarketData> {
     fetchIndexChangePct("1001"),
   ]);
 
-  const [nasdaq, usdkrw] = await Promise.all([
-    fetchOverseasDaily("N", nasdaqCode),
+  const [nasdaqChangePct, usdkrw] = await Promise.all([
+    fetchNasdaqChangePct(),
     fetchUsdKrw(),
   ]);
 
@@ -259,7 +332,7 @@ export async function fetchRealData(): Promise<MarketData> {
       ...kosdaq,
       changePct: kosdaqChangePct,
     },
-    nasdaqChangePct: nasdaq.changePct,
+    nasdaqChangePct,
     usdkrw,
   };
 }
