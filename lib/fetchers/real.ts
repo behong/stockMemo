@@ -33,6 +33,8 @@ const FX_PROVIDER = (process.env.FX_PROVIDER || "er-api").toLowerCase();
 const FX_INTERVAL = process.env.FX_INTERVAL || "5min";
 const NASDAQ_PROVIDER = (process.env.NASDAQ_PROVIDER || "kis-daily").toLowerCase();
 const NASDAQ_INTRADAY_SYMBOL = process.env.NASDAQ_INTRADAY_SYMBOL || "QQQ";
+const NASDAQ_YAHOO_SYMBOL = process.env.NASDAQ_YAHOO_SYMBOL || "NQ=F";
+const FX_YAHOO_SYMBOL = process.env.FX_YAHOO_SYMBOL || "USDKRW=X";
 const INDEX_START_TIME = process.env.KIS_INDEX_START_TIME || "090000";
 const INDEX_MARKET_CODE =
   (process.env.KIS_INDEX_MARKET_CODE || "U").toUpperCase();
@@ -173,6 +175,23 @@ type AlphaVantageQuoteResponse = AlphaVantageResponse & {
   "Global Quote"?: AlphaVantageQuote;
 };
 
+type YahooQuote = {
+  symbol?: string;
+  regularMarketPrice?: number;
+  regularMarketPreviousClose?: number;
+  regularMarketChangePercent?: number;
+  regularMarketOpen?: number;
+};
+
+type YahooQuoteResponse = {
+  quoteResponse?: {
+    result?: YahooQuote[];
+    error?: {
+      description?: string;
+    };
+  };
+};
+
 async function fetchUsdKrwDaily(): Promise<number> {
   const response = await fetch(EXCHANGE_RATE_URL, { cache: "no-store" });
   if (!response.ok) {
@@ -244,9 +263,50 @@ async function fetchUsdKrwAlphaVantage(): Promise<number> {
   return close;
 }
 
+async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, YahooQuote>> {
+  const url = new URL("https://query1.finance.yahoo.com/v7/finance/quote");
+  url.searchParams.set("symbols", symbols.join(","));
+  const response = await fetch(url.toString(), { cache: "no-store" });
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Yahoo quote request failed (${response.status}). ${text}`);
+  }
+
+  const payload = (await response.json()) as YahooQuoteResponse;
+  const error = payload.quoteResponse?.error?.description;
+  if (error) {
+    throw new Error(`Yahoo quote error: ${error}`);
+  }
+
+  const results = payload.quoteResponse?.result ?? [];
+  const map: Record<string, YahooQuote> = {};
+  for (const quote of results) {
+    if (quote.symbol) {
+      map[quote.symbol] = quote;
+    }
+  }
+  return map;
+}
+
+async function fetchUsdKrwYahoo(): Promise<number> {
+  const quotes = await fetchYahooQuotes([FX_YAHOO_SYMBOL]);
+  const quote = quotes[FX_YAHOO_SYMBOL];
+  if (!quote) {
+    throw new Error("Yahoo FX quote missing.");
+  }
+  const price = parseNumber(quote.regularMarketPrice);
+  if (!price) {
+    throw new Error("Yahoo FX quote missing price.");
+  }
+  return price;
+}
+
 async function fetchUsdKrw(): Promise<number> {
   if (FX_PROVIDER === "alphavantage" || FX_PROVIDER === "alpha-vantage") {
     return fetchUsdKrwAlphaVantage();
+  }
+  if (FX_PROVIDER === "yahoo") {
+    return fetchUsdKrwYahoo();
   }
   return fetchUsdKrwDaily();
 }
@@ -295,9 +355,38 @@ async function fetchNasdaqIntraday(): Promise<number> {
   throw new Error("NASDAQ quote response missing open/price.");
 }
 
+async function fetchNasdaqYahoo(): Promise<number> {
+  const quotes = await fetchYahooQuotes([NASDAQ_YAHOO_SYMBOL]);
+  const quote = quotes[NASDAQ_YAHOO_SYMBOL];
+  if (!quote) {
+    throw new Error("Yahoo Nasdaq quote missing.");
+  }
+
+  const changePercent = parseNumber(quote.regularMarketChangePercent);
+  if (Number.isFinite(changePercent) && changePercent !== 0) {
+    return changePercent;
+  }
+
+  const price = parseNumber(quote.regularMarketPrice);
+  const prevClose = parseNumber(quote.regularMarketPreviousClose);
+  if (price && prevClose) {
+    return ((price - prevClose) / prevClose) * 100;
+  }
+
+  const open = parseNumber(quote.regularMarketOpen);
+  if (price && open) {
+    return ((price - open) / open) * 100;
+  }
+
+  throw new Error("Yahoo Nasdaq quote missing change data.");
+}
+
 async function fetchNasdaqChangePct(): Promise<number> {
   if (NASDAQ_PROVIDER === "alphavantage" || NASDAQ_PROVIDER === "alpha-vantage") {
     return fetchNasdaqIntraday();
+  }
+  if (NASDAQ_PROVIDER === "yahoo") {
+    return fetchNasdaqYahoo();
   }
 
   const nasdaqCode = process.env.KIS_NASDAQ_CODE;
