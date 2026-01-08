@@ -57,7 +57,6 @@ const COPY: Record<Language, Record<string, string>> = {
     summaryKosdaq: "코스닥",
     summaryNasdaq: "나스닥",
     summaryUsd: "원/달러",
-    summaryClose: "15:30 마감",
     summaryVolume: "거래량",
     summaryAmount: "거래대금",
     tableTime: "시간",
@@ -92,7 +91,6 @@ const COPY: Record<Language, Record<string, string>> = {
     summaryKosdaq: "KOSDAQ Change",
     summaryNasdaq: "NASDAQ Change",
     summaryUsd: "USD/KRW",
-    summaryClose: "Close 15:30",
     summaryVolume: "Volume",
     summaryAmount: "Turnover",
     tableTime: "Time",
@@ -411,12 +409,6 @@ export default function Home() {
             </div>
             <div className={styles.summaryMeta}>
               <div className={styles.summaryMetaRow}>
-                <span className={styles.summaryMetaLabel}>{text.summaryClose}</span>
-                <span className={styles.summaryMetaValue}>
-                  {closeRecord?.time ?? "--"}
-                </span>
-              </div>
-              <div className={styles.summaryMetaRow}>
                 <span className={styles.summaryMetaLabel}>{text.summaryVolume}</span>
                 <span className={styles.summaryMetaValue}>
                   {closeRecord
@@ -446,12 +438,6 @@ export default function Home() {
               {lastRecord ? formatPercent(lastRecord.kosdaqChangePct) : "--"}
             </div>
             <div className={styles.summaryMeta}>
-              <div className={styles.summaryMetaRow}>
-                <span className={styles.summaryMetaLabel}>{text.summaryClose}</span>
-                <span className={styles.summaryMetaValue}>
-                  {closeRecord?.time ?? "--"}
-                </span>
-              </div>
               <div className={styles.summaryMetaRow}>
                 <span className={styles.summaryMetaLabel}>{text.summaryVolume}</span>
                 <span className={styles.summaryMetaValue}>
