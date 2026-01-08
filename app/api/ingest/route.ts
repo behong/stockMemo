@@ -7,6 +7,7 @@ import { getKstDateTime } from "@/lib/time";
 export const runtime = "nodejs";
 
 export async function POST(request: Request) {
+  console.log("[ingest] KIS_DEBUG", process.env.KIS_DEBUG);
   const apiKey = request.headers.get("x-api-key");
   const expectedKey = process.env.INGEST_API_KEY;
 
