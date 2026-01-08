@@ -315,6 +315,17 @@
   font-family: var(--font-mono);
 }
 
+.qtyAmount {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.amountValue {
+  color: var(--muted);
+  font-size: 0.85rem;
+}
+
 .pos {
   color: var(--blue);
 }

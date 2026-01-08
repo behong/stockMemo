@@ -12,8 +12,11 @@ function randomSigned(maxAbs: number, digits = 2): number {
 function mockSnapshot(): MarketSnapshot {
   return {
     individual: randomBetween(-500000000, 500000000),
+    individualQty: randomBetween(-200000, 200000),
     foreign: randomBetween(-400000000, 400000000),
+    foreignQty: randomBetween(-150000, 150000),
     institution: randomBetween(-300000000, 300000000),
+    institutionQty: randomBetween(-120000, 120000),
     changePct: randomSigned(3, 2),
   };
 }

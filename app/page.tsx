@@ -11,12 +11,18 @@ type RecordRow = {
   date: string;
   time: string;
   kospiIndividual: number;
+  kospiIndividualQty: number;
   kospiForeign: number;
+  kospiForeignQty: number;
   kospiInstitution: number;
+  kospiInstitutionQty: number;
   kospiChangePct: number;
   kosdaqIndividual: number;
+  kosdaqIndividualQty: number;
   kosdaqForeign: number;
+  kosdaqForeignQty: number;
   kosdaqInstitution: number;
+  kosdaqInstitutionQty: number;
   kosdaqChangePct: number;
   nasdaqChangePct: number;
   usdkrw: number;
@@ -235,6 +241,12 @@ export default function Home() {
     : "--";
   const formatNumberLocal = (value: number) => numberFormatter.format(value);
   const formatRateLocal = (value: number) => rateFormatter.format(value);
+  const formatQtyAmount = (qty: number, amount: number) => (
+    <span className={styles.qtyAmount}>
+      <span>{formatNumberLocal(qty)}</span>
+      <span className={styles.amountValue}>{formatNumberLocal(amount)}</span>
+    </span>
+  );
 
   return (
     <div className={styles.page}>
@@ -400,7 +412,10 @@ export default function Home() {
                           lang,
                         )}`}
                       >
-                        {formatNumberLocal(record.kospiIndividual)}
+                        {formatQtyAmount(
+                          record.kospiIndividualQty,
+                          record.kospiIndividual,
+                        )}
                       </td>
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
@@ -408,7 +423,10 @@ export default function Home() {
                           lang,
                         )}`}
                       >
-                        {formatNumberLocal(record.kospiForeign)}
+                        {formatQtyAmount(
+                          record.kospiForeignQty,
+                          record.kospiForeign,
+                        )}
                       </td>
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
@@ -416,7 +434,10 @@ export default function Home() {
                           lang,
                         )}`}
                       >
-                        {formatNumberLocal(record.kospiInstitution)}
+                        {formatQtyAmount(
+                          record.kospiInstitutionQty,
+                          record.kospiInstitution,
+                        )}
                       </td>
                       <td
                         className={`${styles.colKospi} ${styles.num} ${signedClass(
@@ -432,7 +453,10 @@ export default function Home() {
                           lang,
                         )}`}
                       >
-                        {formatNumberLocal(record.kosdaqIndividual)}
+                        {formatQtyAmount(
+                          record.kosdaqIndividualQty,
+                          record.kosdaqIndividual,
+                        )}
                       </td>
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
@@ -440,7 +464,10 @@ export default function Home() {
                           lang,
                         )}`}
                       >
-                        {formatNumberLocal(record.kosdaqForeign)}
+                        {formatQtyAmount(
+                          record.kosdaqForeignQty,
+                          record.kosdaqForeign,
+                        )}
                       </td>
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(
@@ -448,7 +475,10 @@ export default function Home() {
                           lang,
                         )}`}
                       >
-                        {formatNumberLocal(record.kosdaqInstitution)}
+                        {formatQtyAmount(
+                          record.kosdaqInstitutionQty,
+                          record.kosdaqInstitution,
+                        )}
                       </td>
                       <td
                         className={`${styles.colKosdaq} ${styles.num} ${signedClass(

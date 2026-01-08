@@ -108,12 +108,18 @@ export async function POST(request: Request) {
       const data = await fetchMarketData();
       const recordPayload = {
         kospiIndividual: data.kospi.individual,
+        kospiIndividualQty: data.kospi.individualQty,
         kospiForeign: data.kospi.foreign,
+        kospiForeignQty: data.kospi.foreignQty,
         kospiInstitution: data.kospi.institution,
+        kospiInstitutionQty: data.kospi.institutionQty,
         kospiChangePct: data.kospi.changePct,
         kosdaqIndividual: data.kosdaq.individual,
+        kosdaqIndividualQty: data.kosdaq.individualQty,
         kosdaqForeign: data.kosdaq.foreign,
+        kosdaqForeignQty: data.kosdaq.foreignQty,
         kosdaqInstitution: data.kosdaq.institution,
+        kosdaqInstitutionQty: data.kosdaq.institutionQty,
         kosdaqChangePct: data.kosdaq.changePct,
         nasdaqChangePct: data.nasdaqChangePct,
         usdkrw: data.usdkrw,

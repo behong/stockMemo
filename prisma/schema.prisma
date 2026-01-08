@@ -14,10 +14,16 @@ model Record {
   kospiIndividual   Float
   kospiForeign      Float
   kospiInstitution  Float
+  kospiIndividualQty   Float    @default(0)
+  kospiForeignQty      Float    @default(0)
+  kospiInstitutionQty  Float    @default(0)
   kospiChangePct    Float
   kosdaqIndividual  Float
   kosdaqForeign     Float
   kosdaqInstitution Float
+  kosdaqIndividualQty  Float    @default(0)
+  kosdaqForeignQty     Float    @default(0)
+  kosdaqInstitutionQty Float    @default(0)
   kosdaqChangePct   Float
   nasdaqChangePct   Float
   usdkrw            Float

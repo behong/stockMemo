@@ -3,8 +3,11 @@ import { kisGet } from "@/lib/kis";
 import { getKstDate, getKstDateTime } from "@/lib/time";
 
 type InvestorTrendOutput = {
+  frgn_ntby_qty: string;
   frgn_ntby_tr_pbmn: string;
+  prsn_ntby_qty: string;
   prsn_ntby_tr_pbmn: string;
+  orgn_ntby_qty: string;
   orgn_ntby_tr_pbmn: string;
 };
 
@@ -108,13 +111,19 @@ async function fetchInvestorTrend(
   }
 
   const individual = parseNumber(latest.prsn_ntby_tr_pbmn);
+  const individualQty = parseNumber(latest.prsn_ntby_qty);
   const foreign = parseNumber(latest.frgn_ntby_tr_pbmn);
+  const foreignQty = parseNumber(latest.frgn_ntby_qty);
   const institution = parseNumber(latest.orgn_ntby_tr_pbmn);
+  const institutionQty = parseNumber(latest.orgn_ntby_qty);
 
   return {
     individual,
+    individualQty,
     foreign,
+    foreignQty,
     institution,
+    institutionQty,
     changePct: 0,
   };
 }
