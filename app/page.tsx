@@ -128,6 +128,23 @@ function isMarketTime(value: string): boolean {
   return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
 }
 
+const KOREAN_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
+const KOREAN_UNITS = ["", "십", "백", "천"];
+
+function numberToKoreanUnder10000(value: number): string {
+  if (value === 0) return "영";
+  const text = String(value).padStart(4, "0");
+  let output = "";
+  for (let i = 0; i < text.length; i += 1) {
+    const digit = Number(text[i]);
+    if (!digit) continue;
+    const unitIndex = text.length - 1 - i;
+    const digitText = digit === 1 && unitIndex > 0 ? "" : KOREAN_DIGITS[digit];
+    output += `${digitText}${KOREAN_UNITS[unitIndex]}`;
+  }
+  return output;
+}
+
 export default function Home() {
   const [date, setDate] = useState("");
   const [records, setRecords] = useState<RecordRow[]>([]);
@@ -241,14 +258,33 @@ export default function Home() {
     : "--";
   const formatNumberLocal = (value: number) => numberFormatter.format(value);
   const formatRateLocal = (value: number) => rateFormatter.format(value);
-  const amountUnitLabel = lang === "ko" ? "천만" : "10M";
+  const amountUnitLabel = "10M";
   const formatAmountUnit = (value: number) =>
     rateFormatter.format(value / 10_000_000);
+  const formatAmountKorean = (value: number) => {
+    const sign = value < 0 ? "-" : "";
+    const abs = Math.abs(Math.trunc(value));
+    const jo = Math.floor(abs / 1_000_000);
+    const eok = Math.floor((abs % 1_000_000) / 100);
+    if (jo > 0) {
+      const eokThousands = Math.floor(eok / 1000);
+      if (eokThousands > 0) {
+        return `${sign}${jo}조 ${eokThousands}천억`;
+      }
+      return `${sign}${jo}조`;
+    }
+    if (eok === 0) {
+      return "0억";
+    }
+    return `${sign}${numberToKoreanUnder10000(eok)}억`;
+  };
   const formatQtyAmount = (qty: number, amount: number) => (
     <span className={styles.qtyAmount}>
       <span>{formatNumberLocal(qty)}</span>
       <span className={styles.amountValue}>
-        {formatAmountUnit(amount)} {amountUnitLabel}
+        {lang === "ko"
+          ? formatAmountKorean(amount)
+          : `${formatAmountUnit(amount)} ${amountUnitLabel}`}
       </span>
     </span>
   );
