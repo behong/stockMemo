@@ -1,3 +1,5 @@
+import { prisma } from "@/lib/db";
+
 type TokenCache = {
   accessToken: string;
   expiresAt: number;
@@ -21,6 +23,9 @@ const globalForKis = globalThis as unknown as {
   kisToken?: TokenCache;
   kisTokenPromise?: Promise<TokenCache>;
 };
+
+const KIS_TOKEN_NAME = "kis";
+const TOKEN_EXPIRY_BUFFER_MS = 60 * 1000;
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
@@ -68,10 +73,69 @@ async function requestToken(): Promise<TokenCache> {
   };
 }
 
+function isTokenValid(expiresAt: number): boolean {
+  return expiresAt > Date.now() + TOKEN_EXPIRY_BUFFER_MS;
+}
+
+async function readTokenFromDb(): Promise<TokenCache | null> {
+  try {
+    const cached = await prisma.serviceToken.findUnique({
+      where: { name: KIS_TOKEN_NAME },
+    });
+    if (!cached) return null;
+    const expiresAt = cached.expiresAt.getTime();
+    if (!isTokenValid(expiresAt)) return null;
+    return {
+      accessToken: cached.accessToken,
+      expiresAt,
+    };
+  } catch (error) {
+    const debug =
+      process.env.KIS_DEBUG === "1" || process.env.KIS_DEBUG === "true";
+    if (debug) {
+      console.warn(
+        `[KIS] token db read failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+    return null;
+  }
+}
+
+async function writeTokenToDb(token: TokenCache): Promise<void> {
+  try {
+    await prisma.serviceToken.upsert({
+      where: { name: KIS_TOKEN_NAME },
+      update: {
+        accessToken: token.accessToken,
+        expiresAt: new Date(token.expiresAt),
+      },
+      create: {
+        name: KIS_TOKEN_NAME,
+        accessToken: token.accessToken,
+        expiresAt: new Date(token.expiresAt),
+      },
+    });
+  } catch (error) {
+    const debug =
+      process.env.KIS_DEBUG === "1" || process.env.KIS_DEBUG === "true";
+    if (debug) {
+      console.warn(
+        `[KIS] token db write failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+}
+
 async function getAccessToken(): Promise<string> {
   const cached = globalForKis.kisToken;
-  if (cached && cached.expiresAt > Date.now()) {
+  if (cached && isTokenValid(cached.expiresAt)) {
     return cached.accessToken;
+  }
+
+  const stored = await readTokenFromDb();
+  if (stored) {
+    globalForKis.kisToken = stored;
+    return stored.accessToken;
   }
 
   if (!globalForKis.kisTokenPromise) {
@@ -81,6 +145,7 @@ async function getAccessToken(): Promise<string> {
   try {
     const token = await globalForKis.kisTokenPromise;
     globalForKis.kisToken = token;
+    await writeTokenToDb(token);
     return token.accessToken;
   } finally {
     globalForKis.kisTokenPromise = undefined;
