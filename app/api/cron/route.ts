@@ -39,6 +39,14 @@ function isTradingWindow(now: Date): boolean {
   return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
 }
 
+function formatTime(hour: number, minute: number): string {
+  return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function snapToInterval(value: number, interval: number): number {
+  return Math.floor(value / interval) * interval;
+}
+
 function isAuthorized(request: Request): boolean {
   const secret = process.env.CRON_SECRET;
   if (!secret) return true;
@@ -53,7 +61,10 @@ export async function GET(request: Request) {
 
   try {
     const now = new Date();
-    const { date, time } = getKstDateTime(now);
+    const { date } = getKstDateTime(now);
+    const { hour, minute } = getKstTimeParts(now);
+    const snappedMinute = snapToInterval(minute, 10);
+    const time = formatTime(hour, snappedMinute);
     if (!isTradingWindow(now)) {
       console.info("[cron] skipped outside market hours", { date, time });
       return NextResponse.json({
