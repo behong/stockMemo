@@ -57,6 +57,7 @@ const COPY: Record<Language, Record<string, string>> = {
     summaryKosdaq: "코스닥",
     summaryNasdaq: "나스닥",
     summaryUsd: "원/달러",
+    summaryOverseas: "해외",
     summaryVolume: "거래량",
     summaryAmount: "거래대금",
     tableTime: "시간",
@@ -89,8 +90,9 @@ const COPY: Record<Language, Record<string, string>> = {
     statusUpdated: "Updated",
     summaryKospi: "KOSPI Change",
     summaryKosdaq: "KOSDAQ Change",
-    summaryNasdaq: "NASDAQ Change",
+    summaryNasdaq: "NASDAQ",
     summaryUsd: "USD/KRW",
+    summaryOverseas: "Global",
     summaryVolume: "Volume",
     summaryAmount: "Turnover",
     tableTime: "Time",
@@ -435,19 +437,26 @@ export default function Home() {
             </div>
           </div>
           <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>{text.summaryNasdaq}</div>
-            <div
-              className={`${styles.summaryValue} ${
-                lastRecord ? signedClass(lastRecord.nasdaqChangePct, lang) : ""
-              }`}
-            >
-              {lastRecord ? formatPercent(lastRecord.nasdaqChangePct) : "--"}
-            </div>
-          </div>
-          <div className={styles.summaryCard}>
-            <div className={styles.summaryLabel}>{text.summaryUsd}</div>
-            <div className={styles.summaryValue}>
-              {lastRecord ? formatRateLocal(lastRecord.usdkrw) : "--"}
+            <div className={styles.summaryLabel}>{text.summaryOverseas}</div>
+            <div className={styles.summaryMeta}>
+              <div className={styles.summaryMetaRow}>
+                <span className={styles.summaryMetaLabel}>{text.summaryNasdaq}</span>
+                <span
+                  className={`${styles.summaryMetaValue} ${
+                    lastRecord
+                      ? signedClass(lastRecord.nasdaqChangePct, lang)
+                      : ""
+                  }`}
+                >
+                  {lastRecord ? formatPercent(lastRecord.nasdaqChangePct) : "--"}
+                </span>
+              </div>
+              <div className={styles.summaryMetaRow}>
+                <span className={styles.summaryMetaLabel}>{text.summaryUsd}</span>
+                <span className={styles.summaryMetaValue}>
+                  {lastRecord ? formatRateLocal(lastRecord.usdkrw) : "--"}
+                </span>
+              </div>
             </div>
           </div>
         </section>
