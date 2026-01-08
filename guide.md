@@ -24,7 +24,7 @@
 - FETCH_MODE=mock | real
 - TZ=Asia/Seoul
 
----
+---Approve thie session
 
 ## 데이터 모델 (Prisma)
 - 테이블명: Record
