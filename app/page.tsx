@@ -266,17 +266,18 @@ export default function Home() {
     const abs = Math.abs(Math.trunc(value));
     const jo = Math.floor(abs / 1_000_000);
     const eok = Math.floor((abs % 1_000_000) / 100);
+    const rawLabel = `${sign}${formatNumberLocal(abs)}`;
     if (jo > 0) {
       const eokThousands = Math.floor(eok / 1000);
       if (eokThousands > 0) {
-        return `${sign}${jo}조 ${eokThousands}천억`;
+        return `${sign}${jo}조 ${eokThousands}천억 (${rawLabel})`;
       }
-      return `${sign}${jo}조`;
+      return `${sign}${jo}조 (${rawLabel})`;
     }
     if (eok === 0) {
-      return "0억";
+      return `0억 (${rawLabel})`;
     }
-    return `${sign}${numberToKoreanUnder10000(eok)}억`;
+    return `${sign}${numberToKoreanUnder10000(eok)}억 (${rawLabel})`;
   };
   const formatQtyAmount = (qty: number, amount: number) => (
     <span className={styles.qtyAmount}>
