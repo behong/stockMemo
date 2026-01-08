@@ -1,6 +1,6 @@
 import type { MarketData, MarketSnapshot } from "./types";
 import { kisGet } from "@/lib/kis";
-import { getKstDate } from "@/lib/time";
+import { getKstDate, getKstDateTime } from "@/lib/time";
 
 type InvestorTrendOutput = {
   frgn_ntby_tr_pbmn: string;
@@ -15,6 +15,7 @@ type OverseasDailyOutput = {
 };
 
 type IndexTimeOutput = {
+  bsop_hour?: string;
   bstp_nmix_prdy_ctrt?: string;
 };
 
@@ -35,7 +36,8 @@ const NASDAQ_PROVIDER = (process.env.NASDAQ_PROVIDER || "kis-daily").toLowerCase
 const NASDAQ_INTRADAY_SYMBOL = process.env.NASDAQ_INTRADAY_SYMBOL || "QQQ";
 const NASDAQ_YAHOO_SYMBOL = process.env.NASDAQ_YAHOO_SYMBOL || "NQ=F";
 const FX_YAHOO_SYMBOL = process.env.FX_YAHOO_SYMBOL || "USDKRW=X";
-const INDEX_START_TIME = process.env.KIS_INDEX_START_TIME || "090000";
+const INDEX_INTERVAL_SECONDS =
+  process.env.KIS_INDEX_INTERVAL_SECONDS || "600";
 const INDEX_MARKET_CODE =
   (process.env.KIS_INDEX_MARKET_CODE || "U").toUpperCase();
 
@@ -44,6 +46,23 @@ function parseNumber(value: string | number | null | undefined): number {
   const text = String(value).replace(/,/g, "");
   const parsed = Number(text);
   return Number.isFinite(parsed) ? parsed : 0;
+}
+
+function parseClockMinutes(value: string): number | null {
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return hour * 60 + minute;
+}
+
+function parseKisTimeMinutes(value?: string): number | null {
+  if (!value) return null;
+  const text = value.padStart(6, "0");
+  const hour = Number(text.slice(0, 2));
+  const minute = Number(text.slice(2, 4));
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) return null;
+  return hour * 60 + minute;
 }
 
 function parsePercent(value: string | number | null | undefined): number {
@@ -107,18 +126,45 @@ async function fetchIndexChangePct(sectorCode: string): Promise<number> {
     {
       fid_cond_mrkt_div_code: INDEX_MARKET_CODE,
       fid_input_iscd: sectorCode,
-      fid_input_hour_1: INDEX_START_TIME,
+      fid_input_hour_1: INDEX_INTERVAL_SECONDS,
     },
   );
 
-  const latest = Array.isArray(output)
-    ? output[output.length - 1]
-    : output;
-  if (!latest) {
+  if (!Array.isArray(output)) {
+    if (!output) {
+      throw new Error("Index time response is empty.");
+    }
+    return parseNumber(output.bstp_nmix_prdy_ctrt);
+  }
+
+  const entries = output
+    .map((item) => ({
+      item,
+      minutes: parseKisTimeMinutes(item.bsop_hour),
+    }))
+    .filter((entry) => entry.minutes !== null)
+    .sort((a, b) => (a.minutes ?? 0) - (b.minutes ?? 0));
+
+  if (entries.length === 0) {
     throw new Error("Index time response is empty.");
   }
 
-  return parseNumber(latest.bstp_nmix_prdy_ctrt);
+  const { time } = getKstDateTime();
+  const nowMinutes = parseClockMinutes(time);
+
+  let chosen = entries[0];
+  if (nowMinutes !== null) {
+    for (let i = entries.length - 1; i >= 0; i -= 1) {
+      if ((entries[i].minutes ?? 0) <= nowMinutes) {
+        chosen = entries[i];
+        break;
+      }
+    }
+  } else {
+    chosen = entries[entries.length - 1];
+  }
+
+  return parseNumber(chosen.item.bstp_nmix_prdy_ctrt);
 }
 
 async function fetchOverseasDaily(
