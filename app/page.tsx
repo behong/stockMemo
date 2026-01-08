@@ -241,10 +241,15 @@ export default function Home() {
     : "--";
   const formatNumberLocal = (value: number) => numberFormatter.format(value);
   const formatRateLocal = (value: number) => rateFormatter.format(value);
+  const amountUnitLabel = lang === "ko" ? "천만" : "10M";
+  const formatAmountUnit = (value: number) =>
+    rateFormatter.format(value / 10_000_000);
   const formatQtyAmount = (qty: number, amount: number) => (
     <span className={styles.qtyAmount}>
       <span>{formatNumberLocal(qty)}</span>
-      <span className={styles.amountValue}>{formatNumberLocal(amount)}</span>
+      <span className={styles.amountValue}>
+        {formatAmountUnit(amount)} {amountUnitLabel}
+      </span>
     </span>
   );
 
