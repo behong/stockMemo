@@ -104,6 +104,10 @@ export async function kisGet<T>(
     url.searchParams.set(key, value);
   }
 
+  if (debug) {
+    console.log(`[KIS] request url=${url.toString()} tr_id=${trId}`);
+  }
+
   const response = await fetch(url.toString(), {
     method: "GET",
     headers: {
