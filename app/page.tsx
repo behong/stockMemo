@@ -136,16 +136,6 @@ function isMarketTime(value: string): boolean {
   return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
 }
 
-function timeToMinutes(value: string): number | null {
-  const [hourText, minuteText] = value.split(":");
-  const hour = Number(hourText);
-  const minute = Number(minuteText);
-  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
-    return null;
-  }
-  return hour * 60 + minute;
-}
-
 const KOREAN_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
 const KOREAN_UNITS = ["", "십", "백", "천"];
 
@@ -288,14 +278,14 @@ export default function Home() {
     if (jo > 0) {
       const eokThousands = Math.floor(eok / 1000);
       if (eokThousands > 0) {
-        return `${sign}${jo}조 ${eokThousands}천억 (${rawLabel})`;
+        return `${sign}${jo}? ${eokThousands}?? (${rawLabel})`;
       }
-      return `${sign}${jo}조 (${rawLabel})`;
+      return `${sign}${jo}? (${rawLabel})`;
     }
     if (eok === 0) {
-      return `0억 (${rawLabel})`;
+      return `0? (${rawLabel})`;
     }
-    return `${sign}${numberToKoreanUnder10000(eok)}억 (${rawLabel})`;
+    return `${sign}${numberToKoreanUnder10000(eok)}? (${rawLabel})`;
   };
   const formatQtyAmount = (qty: number, amount: number) => (
     <span className={styles.qtyAmount}>
@@ -308,21 +298,7 @@ export default function Home() {
     </span>
   );
 
-  const closeRecord = useMemo(() => {
-    let chosen: RecordRow | null = null;
-    let chosenMinutes = -1;
-    for (const record of displayRecords) {
-      const minutes = timeToMinutes(record.time);
-      if (minutes === null) continue;
-      if (minutes > MARKET_CLOSE_MINUTES) continue;
-      if (minutes >= chosenMinutes) {
-        chosen = record;
-        chosenMinutes = minutes;
-      }
-    }
-    return chosen;
-  }, [displayRecords]);
-
+  
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -411,18 +387,18 @@ export default function Home() {
               <div className={styles.summaryMetaRow}>
                 <span className={styles.summaryMetaLabel}>{text.summaryVolume}</span>
                 <span className={styles.summaryMetaValue}>
-                  {closeRecord
-                    ? formatNumberLocal(closeRecord.kospiAccVolume)
+                  {lastRecord
+                    ? formatNumberLocal(lastRecord.kospiAccVolume)
                     : "--"}
                 </span>
               </div>
               <div className={styles.summaryMetaRow}>
                 <span className={styles.summaryMetaLabel}>{text.summaryAmount}</span>
                 <span className={styles.summaryMetaValue}>
-                  {closeRecord
+                  {lastRecord
                     ? lang === "ko"
-                      ? formatAmountKorean(closeRecord.kospiAccAmount)
-                      : `${formatAmountUnit(closeRecord.kospiAccAmount)} ${amountUnitLabel}`
+                      ? formatAmountKorean(lastRecord.kospiAccAmount)
+                      : `${formatAmountUnit(lastRecord.kospiAccAmount)} ${amountUnitLabel}`
                     : "--"}
                 </span>
               </div>
@@ -441,18 +417,18 @@ export default function Home() {
               <div className={styles.summaryMetaRow}>
                 <span className={styles.summaryMetaLabel}>{text.summaryVolume}</span>
                 <span className={styles.summaryMetaValue}>
-                  {closeRecord
-                    ? formatNumberLocal(closeRecord.kosdaqAccVolume)
+                  {lastRecord
+                    ? formatNumberLocal(lastRecord.kosdaqAccVolume)
                     : "--"}
                 </span>
               </div>
               <div className={styles.summaryMetaRow}>
                 <span className={styles.summaryMetaLabel}>{text.summaryAmount}</span>
                 <span className={styles.summaryMetaValue}>
-                  {closeRecord
+                  {lastRecord
                     ? lang === "ko"
-                      ? formatAmountKorean(closeRecord.kosdaqAccAmount)
-                      : `${formatAmountUnit(closeRecord.kosdaqAccAmount)} ${amountUnitLabel}`
+                      ? formatAmountKorean(lastRecord.kosdaqAccAmount)
+                      : `${formatAmountUnit(lastRecord.kosdaqAccAmount)} ${amountUnitLabel}`
                     : "--"}
                 </span>
               </div>
