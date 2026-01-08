@@ -252,6 +252,35 @@ type YahooQuoteResponse = {
   };
 };
 
+type YahooChartMeta = {
+  regularMarketPrice?: number;
+  previousClose?: number;
+  chartPreviousClose?: number;
+  regularMarketChangePercent?: number;
+  regularMarketOpen?: number;
+};
+
+type YahooChartIndicators = {
+  quote?: Array<{
+    open?: Array<number | null>;
+    close?: Array<number | null>;
+  }>;
+};
+
+type YahooChartResult = {
+  meta?: YahooChartMeta;
+  indicators?: YahooChartIndicators;
+};
+
+type YahooChartResponse = {
+  chart?: {
+    result?: YahooChartResult[];
+    error?: {
+      description?: string;
+    };
+  };
+};
+
 type YahooAuth = {
   crumb: string;
   cookie: string;
@@ -307,6 +336,32 @@ function extractCookies(setCookieHeader: string[] | string | null): string {
     .map((cookie) => cookie.split(";")[0])
     .filter(Boolean)
     .join("; ");
+}
+
+function isYahooUnauthorized(message: string): boolean {
+  const lower = message.toLowerCase();
+  return lower.includes("unauthorized") || lower.includes("unable to access");
+}
+
+function pickFirstFinite(values?: Array<number | null>): number | null {
+  if (!values) return null;
+  for (const value of values) {
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return null;
+}
+
+function pickLastFinite(values?: Array<number | null>): number | null {
+  if (!values) return null;
+  for (let i = values.length - 1; i >= 0; i -= 1) {
+    const value = values[i];
+    if (typeof value === "number" && Number.isFinite(value)) {
+      return value;
+    }
+  }
+  return null;
 }
 
 async function getYahooAuth(): Promise<YahooAuth> {
@@ -380,6 +435,83 @@ async function requestYahooQuotes(
     throw new Error(`Yahoo quote request failed (${response.status}). ${text}`);
   }
   return (await response.json()) as YahooQuoteResponse;
+}
+
+async function requestYahooChart(symbol: string): Promise<YahooChartResponse> {
+  const url = new URL(
+    `https://query1.finance.yahoo.com/v8/finance/chart/${encodeURIComponent(symbol)}`,
+  );
+  url.searchParams.set("interval", "1m");
+  url.searchParams.set("range", "1d");
+  url.searchParams.set("includePrePost", "true");
+
+  const response = await fetch(url.toString(), {
+    headers: {
+      "user-agent":
+        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36",
+      "accept-language": "en-US,en;q=0.9",
+    },
+    cache: "no-store",
+  });
+
+  if (!response.ok) {
+    const text = await response.text();
+    throw new Error(`Yahoo chart request failed (${response.status}). ${text}`);
+  }
+
+  return (await response.json()) as YahooChartResponse;
+}
+
+function chartToQuote(symbol: string, payload: YahooChartResponse): YahooQuote | null {
+  const result = payload.chart?.result?.[0];
+  if (!result) return null;
+
+  const meta = result.meta ?? {};
+  const quote: YahooQuote = {
+    symbol,
+    regularMarketPrice: meta.regularMarketPrice,
+    regularMarketPreviousClose: meta.previousClose ?? meta.chartPreviousClose,
+    regularMarketChangePercent: meta.regularMarketChangePercent,
+    regularMarketOpen: meta.regularMarketOpen,
+  };
+
+  const indicator = result.indicators?.quote?.[0];
+  const open = pickFirstFinite(indicator?.open);
+  const close = pickLastFinite(indicator?.close);
+
+  if (!quote.regularMarketOpen && open !== null) {
+    quote.regularMarketOpen = open;
+  }
+  if (!quote.regularMarketPrice && close !== null) {
+    quote.regularMarketPrice = close;
+  }
+
+  return quote;
+}
+
+async function fetchYahooChartQuotes(
+  symbols: string[],
+): Promise<Record<string, YahooQuote>> {
+  const entries = await Promise.all(
+    symbols.map(async (symbol) => {
+      const payload = await requestYahooChart(symbol);
+      const error = payload.chart?.error?.description;
+      if (error) {
+        throw new Error(`Yahoo chart error: ${error}`);
+      }
+      const quote = chartToQuote(symbol, payload);
+      if (!quote) {
+        throw new Error("Yahoo chart quote missing.");
+      }
+      return [symbol, quote] as const;
+    }),
+  );
+
+  const map: Record<string, YahooQuote> = {};
+  for (const [symbol, quote] of entries) {
+    map[symbol] = quote;
+  }
+  return map;
 }
 
 async function fetchUsdKrwDaily(): Promise<number> {
@@ -460,8 +592,16 @@ async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, Yahoo
   try {
     auth = await getYahooAuth();
     payload = await requestYahooQuotes(symbols, auth);
-  } catch {
-    payload = await requestYahooQuotes(symbols);
+  } catch (error) {
+    try {
+      payload = await requestYahooQuotes(symbols);
+    } catch (fallbackError) {
+      const message = String(fallbackError);
+      if (isYahooUnauthorized(message)) {
+        return fetchYahooChartQuotes(symbols);
+      }
+      throw fallbackError;
+    }
   }
 
   const error = payload.quoteResponse?.error?.description;
@@ -472,9 +612,11 @@ async function fetchYahooQuotes(symbols: string[]): Promise<Record<string, Yahoo
   }
 
   if (payload.quoteResponse?.error?.description) {
-    throw new Error(
-      `Yahoo quote error: ${payload.quoteResponse.error.description}`,
-    );
+    const description = payload.quoteResponse.error.description;
+    if (isYahooUnauthorized(description)) {
+      return fetchYahooChartQuotes(symbols);
+    }
+    throw new Error(`Yahoo quote error: ${description}`);
   }
 
   const results = payload.quoteResponse?.result ?? [];
