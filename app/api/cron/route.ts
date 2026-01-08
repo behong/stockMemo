@@ -85,6 +85,8 @@ export async function GET(request: Request) {
       kospiInstitution: data.kospi.institution,
       kospiInstitutionQty: data.kospi.institutionQty,
       kospiChangePct: data.kospi.changePct,
+      kospiAccVolume: data.kospi.accVolume,
+      kospiAccAmount: data.kospi.accAmount,
       kosdaqIndividual: data.kosdaq.individual,
       kosdaqIndividualQty: data.kosdaq.individualQty,
       kosdaqForeign: data.kosdaq.foreign,
@@ -92,6 +94,8 @@ export async function GET(request: Request) {
       kosdaqInstitution: data.kosdaq.institution,
       kosdaqInstitutionQty: data.kosdaq.institutionQty,
       kosdaqChangePct: data.kosdaq.changePct,
+      kosdaqAccVolume: data.kosdaq.accVolume,
+      kosdaqAccAmount: data.kosdaq.accAmount,
       nasdaqChangePct: data.nasdaqChangePct,
       usdkrw: data.usdkrw,
     };

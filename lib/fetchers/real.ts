@@ -20,6 +20,8 @@ type OverseasDailyOutput = {
 type IndexTimeOutput = {
   bsop_hour?: string;
   bstp_nmix_prdy_ctrt?: string;
+  acml_tr_pbmn?: string;
+  acml_vol?: string;
 };
 
 const INVESTOR_TREND_PATH =
@@ -125,10 +127,26 @@ async function fetchInvestorTrend(
     institution,
     institutionQty,
     changePct: 0,
+    accVolume: 0,
+    accAmount: 0,
   };
 }
 
-async function fetchIndexChangePct(sectorCode: string): Promise<number> {
+type IndexSnapshot = {
+  changePct: number;
+  accVolume: number;
+  accAmount: number;
+};
+
+function toIndexSnapshot(output: IndexTimeOutput): IndexSnapshot {
+  return {
+    changePct: parseNumber(output.bstp_nmix_prdy_ctrt),
+    accVolume: parseNumber(output.acml_vol),
+    accAmount: parseNumber(output.acml_tr_pbmn),
+  };
+}
+
+async function fetchIndexSnapshot(sectorCode: string): Promise<IndexSnapshot> {
   const output = await kisGet<IndexTimeOutput | IndexTimeOutput[]>(
     INDEX_TIME_PATH,
     INDEX_TIME_TR_ID,
@@ -143,7 +161,7 @@ async function fetchIndexChangePct(sectorCode: string): Promise<number> {
     if (!output) {
       throw new Error("Index time response is empty.");
     }
-    return parseNumber(output.bstp_nmix_prdy_ctrt);
+    return toIndexSnapshot(output);
   }
 
   const entries = output
@@ -173,7 +191,7 @@ async function fetchIndexChangePct(sectorCode: string): Promise<number> {
     chosen = entries[entries.length - 1];
   }
 
-  return parseNumber(chosen.item.bstp_nmix_prdy_ctrt);
+  return toIndexSnapshot(chosen.item);
 }
 
 async function fetchOverseasDaily(
@@ -739,11 +757,11 @@ async function fetchNasdaqChangePct(): Promise<number> {
 }
 
 export async function fetchRealData(): Promise<MarketData> {
-  const [kospi, kosdaq, kospiChangePct, kosdaqChangePct] = await Promise.all([
+  const [kospi, kosdaq, kospiIndex, kosdaqIndex] = await Promise.all([
     fetchInvestorTrend("KSP", "0001"),
     fetchInvestorTrend("KSQ", "1001"),
-    fetchIndexChangePct("0001"),
-    fetchIndexChangePct("1001"),
+    fetchIndexSnapshot("0001"),
+    fetchIndexSnapshot("1001"),
   ]);
 
   const [nasdaqChangePct, usdkrw] = await Promise.all([
@@ -754,11 +772,15 @@ export async function fetchRealData(): Promise<MarketData> {
   return {
     kospi: {
       ...kospi,
-      changePct: kospiChangePct,
+      changePct: kospiIndex.changePct,
+      accVolume: kospiIndex.accVolume,
+      accAmount: kospiIndex.accAmount,
     },
     kosdaq: {
       ...kosdaq,
-      changePct: kosdaqChangePct,
+      changePct: kosdaqIndex.changePct,
+      accVolume: kosdaqIndex.accVolume,
+      accAmount: kosdaqIndex.accAmount,
     },
     nasdaqChangePct,
     usdkrw,

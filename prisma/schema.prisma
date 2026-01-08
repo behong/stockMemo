@@ -18,6 +18,8 @@ model Record {
   kospiForeignQty      Float    @default(0)
   kospiInstitutionQty  Float    @default(0)
   kospiChangePct    Float
+  kospiAccVolume    Float    @default(0)
+  kospiAccAmount    Float    @default(0)
   kosdaqIndividual  Float
   kosdaqForeign     Float
   kosdaqInstitution Float
@@ -25,6 +27,8 @@ model Record {
   kosdaqForeignQty     Float    @default(0)
   kosdaqInstitutionQty Float    @default(0)
   kosdaqChangePct   Float
+  kosdaqAccVolume   Float    @default(0)
+  kosdaqAccAmount   Float    @default(0)
   nasdaqChangePct   Float
   usdkrw            Float
   createdAt         DateTime @default(now())

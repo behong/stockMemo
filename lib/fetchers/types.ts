@@ -6,6 +6,8 @@ export type MarketSnapshot = {
   institution: number;
   institutionQty: number;
   changePct: number;
+  accVolume: number;
+  accAmount: number;
 };
 
 export type MarketData = {

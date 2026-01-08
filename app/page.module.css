@@ -230,6 +230,30 @@
   font-size: 20px;
 }
 
+.summaryMeta {
+  margin-top: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.summaryMetaRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.summaryMetaLabel {
+  letter-spacing: 0.04em;
+}
+
+.summaryMetaValue {
+  font-family: var(--font-mono);
+  color: var(--ink);
+  text-align: right;
+}
+
 .tableShell {
   border-radius: 20px;
   overflow: hidden;

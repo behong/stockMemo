@@ -17,6 +17,8 @@ type RecordRow = {
   kospiInstitution: number;
   kospiInstitutionQty: number;
   kospiChangePct: number;
+  kospiAccVolume: number;
+  kospiAccAmount: number;
   kosdaqIndividual: number;
   kosdaqIndividualQty: number;
   kosdaqForeign: number;
@@ -24,6 +26,8 @@ type RecordRow = {
   kosdaqInstitution: number;
   kosdaqInstitutionQty: number;
   kosdaqChangePct: number;
+  kosdaqAccVolume: number;
+  kosdaqAccAmount: number;
   nasdaqChangePct: number;
   usdkrw: number;
 };
@@ -53,6 +57,9 @@ const COPY: Record<Language, Record<string, string>> = {
     summaryKosdaq: "코스닥",
     summaryNasdaq: "나스닥",
     summaryUsd: "원/달러",
+    summaryClose: "15:30 마감",
+    summaryVolume: "거래량",
+    summaryAmount: "거래대금",
     tableTime: "시간",
     tableKospi: "코스피",
     tableKosdaq: "코스닥",
@@ -85,6 +92,9 @@ const COPY: Record<Language, Record<string, string>> = {
     summaryKosdaq: "KOSDAQ Change",
     summaryNasdaq: "NASDAQ Change",
     summaryUsd: "USD/KRW",
+    summaryClose: "Close 15:30",
+    summaryVolume: "Volume",
+    summaryAmount: "Turnover",
     tableTime: "Time",
     tableKospi: "KOSPI",
     tableKosdaq: "KOSDAQ",
@@ -126,6 +136,16 @@ function isMarketTime(value: string): boolean {
   }
   const minutes = hour * 60 + minute;
   return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
+}
+
+function timeToMinutes(value: string): number | null {
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return null;
+  }
+  return hour * 60 + minute;
 }
 
 const KOREAN_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
@@ -290,6 +310,21 @@ export default function Home() {
     </span>
   );
 
+  const closeRecord = useMemo(() => {
+    let chosen: RecordRow | null = null;
+    let chosenMinutes = -1;
+    for (const record of displayRecords) {
+      const minutes = timeToMinutes(record.time);
+      if (minutes === null) continue;
+      if (minutes > MARKET_CLOSE_MINUTES) continue;
+      if (minutes >= chosenMinutes) {
+        chosen = record;
+        chosenMinutes = minutes;
+      }
+    }
+    return chosen;
+  }, [displayRecords]);
+
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -374,6 +409,32 @@ export default function Home() {
             >
               {lastRecord ? formatPercent(lastRecord.kospiChangePct) : "--"}
             </div>
+            <div className={styles.summaryMeta}>
+              <div className={styles.summaryMetaRow}>
+                <span className={styles.summaryMetaLabel}>{text.summaryClose}</span>
+                <span className={styles.summaryMetaValue}>
+                  {closeRecord?.time ?? "--"}
+                </span>
+              </div>
+              <div className={styles.summaryMetaRow}>
+                <span className={styles.summaryMetaLabel}>{text.summaryVolume}</span>
+                <span className={styles.summaryMetaValue}>
+                  {closeRecord
+                    ? formatNumberLocal(closeRecord.kospiAccVolume)
+                    : "--"}
+                </span>
+              </div>
+              <div className={styles.summaryMetaRow}>
+                <span className={styles.summaryMetaLabel}>{text.summaryAmount}</span>
+                <span className={styles.summaryMetaValue}>
+                  {closeRecord
+                    ? lang === "ko"
+                      ? formatAmountKorean(closeRecord.kospiAccAmount)
+                      : `${formatAmountUnit(closeRecord.kospiAccAmount)} ${amountUnitLabel}`
+                    : "--"}
+                </span>
+              </div>
+            </div>
           </div>
           <div className={styles.summaryCard}>
             <div className={styles.summaryLabel}>{text.summaryKosdaq}</div>
@@ -383,6 +444,32 @@ export default function Home() {
               }`}
             >
               {lastRecord ? formatPercent(lastRecord.kosdaqChangePct) : "--"}
+            </div>
+            <div className={styles.summaryMeta}>
+              <div className={styles.summaryMetaRow}>
+                <span className={styles.summaryMetaLabel}>{text.summaryClose}</span>
+                <span className={styles.summaryMetaValue}>
+                  {closeRecord?.time ?? "--"}
+                </span>
+              </div>
+              <div className={styles.summaryMetaRow}>
+                <span className={styles.summaryMetaLabel}>{text.summaryVolume}</span>
+                <span className={styles.summaryMetaValue}>
+                  {closeRecord
+                    ? formatNumberLocal(closeRecord.kosdaqAccVolume)
+                    : "--"}
+                </span>
+              </div>
+              <div className={styles.summaryMetaRow}>
+                <span className={styles.summaryMetaLabel}>{text.summaryAmount}</span>
+                <span className={styles.summaryMetaValue}>
+                  {closeRecord
+                    ? lang === "ko"
+                      ? formatAmountKorean(closeRecord.kosdaqAccAmount)
+                      : `${formatAmountUnit(closeRecord.kosdaqAccAmount)} ${amountUnitLabel}`
+                    : "--"}
+                </span>
+              </div>
             </div>
           </div>
           <div className={styles.summaryCard}>
