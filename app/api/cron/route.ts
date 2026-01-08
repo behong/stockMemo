@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 const TIME_ZONE = process.env.APP_TZ || process.env.TZ || "Asia/Seoul";
 const MARKET_OPEN_MINUTES = 9 * 60;
 const MARKET_CLOSE_MINUTES = 15 * 60 + 30;
+const MARKET_CLOSE_GRACE_MINUTES = 15;
 
 function getKstTimeParts(now: Date) {
   const formatter = new Intl.DateTimeFormat("en-US", {
@@ -36,7 +37,10 @@ function isTradingWindow(now: Date): boolean {
   const { weekday, hour, minute } = getKstTimeParts(now);
   if (weekday === "Sat" || weekday === "Sun") return false;
   const minutes = hour * 60 + minute;
-  return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
+  return (
+    minutes >= MARKET_OPEN_MINUTES &&
+    minutes <= MARKET_CLOSE_MINUTES + MARKET_CLOSE_GRACE_MINUTES
+  );
 }
 
 function formatTime(hour: number, minute: number): string {
@@ -63,7 +67,9 @@ export async function GET(request: Request) {
     const now = new Date();
     const { date } = getKstDateTime(now);
     const { hour, minute } = getKstTimeParts(now);
-    const snappedMinute = snapToInterval(minute, 10);
+    const minutes = hour * 60 + minute;
+    const snappedMinute =
+      minutes > MARKET_CLOSE_MINUTES ? 30 : snapToInterval(minute, 10);
     const time = formatTime(hour, snappedMinute);
     if (!isTradingWindow(now)) {
       console.info("[cron] skipped outside market hours", { date, time });
