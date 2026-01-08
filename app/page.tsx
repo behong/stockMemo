@@ -128,43 +128,6 @@ function isMarketTime(value: string): boolean {
   return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
 }
 
-const KOREAN_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-const KOREAN_SMALL_UNITS = ["", "십", "백", "천"];
-const KOREAN_LARGE_UNITS = ["", "만", "억", "조", "경"];
-
-function chunkToKorean(value: number): string {
-  if (value <= 0) return "";
-  const text = String(value).padStart(4, "0");
-  let output = "";
-  for (let i = 0; i < text.length; i += 1) {
-    const digit = Number(text[i]);
-    if (!digit) continue;
-    const unitIndex = text.length - 1 - i;
-    const digitText =
-      digit === 1 && unitIndex > 0 ? "" : KOREAN_DIGITS[digit];
-    output += `${digitText}${KOREAN_SMALL_UNITS[unitIndex]}`;
-  }
-  return output;
-}
-
-function numberToKorean(value: number): string {
-  if (value === 0) return "영";
-  let remaining = Math.floor(value);
-  let output = "";
-  let unitIndex = 0;
-  while (remaining > 0) {
-    const chunk = remaining % 10000;
-    if (chunk) {
-      const chunkText = chunkToKorean(chunk);
-      const unitText = KOREAN_LARGE_UNITS[unitIndex];
-      output = `${chunkText}${unitText}${output}`;
-    }
-    remaining = Math.floor(remaining / 10000);
-    unitIndex += 1;
-  }
-  return output;
-}
-
 export default function Home() {
   const [date, setDate] = useState("");
   const [records, setRecords] = useState<RecordRow[]>([]);
@@ -278,21 +241,14 @@ export default function Home() {
     : "--";
   const formatNumberLocal = (value: number) => numberFormatter.format(value);
   const formatRateLocal = (value: number) => rateFormatter.format(value);
-  const amountUnitLabel = "10M";
+  const amountUnitLabel = lang === "ko" ? "천만" : "10M";
   const formatAmountUnit = (value: number) =>
     rateFormatter.format(value / 10_000_000);
-  const formatAmountKorean = (value: number) => {
-    const sign = value < 0 ? "-" : "";
-    const eokValue = Math.round(Math.abs(value) / 100_000_000);
-    return `${sign}${numberToKorean(eokValue)}억원`;
-  };
   const formatQtyAmount = (qty: number, amount: number) => (
     <span className={styles.qtyAmount}>
       <span>{formatNumberLocal(qty)}</span>
       <span className={styles.amountValue}>
-        {lang === "ko"
-          ? formatAmountKorean(amount)
-          : `${formatAmountUnit(amount)} ${amountUnitLabel}`}
+        {formatAmountUnit(amount)} {amountUnitLabel}
       </span>
     </span>
   );
