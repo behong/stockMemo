@@ -280,14 +280,14 @@ export default function Home() {
     if (jo > 0) {
       const eokThousands = Math.floor(eok / 1000);
       if (eokThousands > 0) {
-        return `${sign}${jo}? ${eokThousands}?? (${rawLabel})`;
+        return `${sign}${jo}조 ${eokThousands}천억 (${rawLabel})`;
       }
-      return `${sign}${jo}? (${rawLabel})`;
+      return `${sign}${jo}조 (${rawLabel})`;
     }
     if (eok === 0) {
-      return `0? (${rawLabel})`;
+      return `0억 (${rawLabel})`;
     }
-    return `${sign}${numberToKoreanUnder10000(eok)}? (${rawLabel})`;
+    return `${sign}${numberToKoreanUnder10000(eok)}억 (${rawLabel})`;
   };
   const formatQtyAmount = (qty: number, amount: number) => (
     <span className={styles.qtyAmount}>
