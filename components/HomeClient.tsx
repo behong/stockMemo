@@ -48,6 +48,10 @@ type HomeClientProps = {
   initialRecords: RecordRow[];
 };
 
+type LoadOptions = {
+  silent?: boolean;
+};
+
 const COPY: Record<Language, Record<string, string>> = {
   ko: {
     title: "\uC2A4\uD1A1 \uBA54\uBAA8",
@@ -197,36 +201,45 @@ export default function HomeClient({
   const dateInputRef = useRef<HTMLInputElement>(null);
   const initialLoadRef = useRef(false);
 
-  const loadRecords = useCallback(async (requestedDate?: string) => {
-    setStatus("loading");
-    setErrorMessage("");
+  const isRefreshingRef = useRef(false);
 
-    const endpoint = requestedDate
-      ? `/api/records?date=${encodeURIComponent(requestedDate)}`
-      : "/api/records";
-
-    try {
-      const response = await fetch(endpoint);
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => null);
-        const message =
-          payload?.error ?? `Request failed (${response.status}).`;
-        throw new Error(message);
+  const loadRecords = useCallback(
+    async (requestedDate?: string, options?: LoadOptions) => {
+      if (!options?.silent) {
+        setStatus("loading");
       }
+      setErrorMessage("");
 
-      const payload = (await response.json()) as RecordsResponse;
-      setDate(payload.date ?? requestedDate ?? "");
-      setRecords(payload.records ?? []);
-      setLastUpdated(new Date());
-      setStatus("idle");
-    } catch (error) {
-      setStatus("error");
-      setErrorMessage(
-        error instanceof Error ? error.message : "Failed to load records.",
-      );
-    }
-  }, []);
+      const endpoint = requestedDate
+        ? `/api/records?date=${encodeURIComponent(requestedDate)}`
+        : "/api/records";
+
+      try {
+        const response = await fetch(endpoint);
+
+        if (!response.ok) {
+          const payload = await response.json().catch(() => null);
+          const message =
+            payload?.error ?? `Request failed (${response.status}).`;
+          throw new Error(message);
+        }
+
+        const payload = (await response.json()) as RecordsResponse;
+        setDate(payload.date ?? requestedDate ?? "");
+        setRecords(payload.records ?? []);
+        setLastUpdated(new Date());
+        setStatus("idle");
+      } catch (error) {
+        if (!options?.silent) {
+          setStatus("error");
+        }
+        setErrorMessage(
+          error instanceof Error ? error.message : "Failed to load records.",
+        );
+      }
+    },
+    [],
+  );
 
   useEffect(() => {
     if (initialLoadRef.current) return;
@@ -235,6 +248,19 @@ export default function HomeClient({
       loadRecords();
     }
   }, [initialRecords.length, loadRecords]);
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      if (isRefreshingRef.current) return;
+      isRefreshingRef.current = true;
+      loadRecords(date || undefined, { silent: true }).finally(() => {
+        isRefreshingRef.current = false;
+      });
+    }, 600_000);
+
+    return () => clearInterval(interval);
+  }, [date, loadRecords]);
 
   useEffect(() => {
     const stored =
