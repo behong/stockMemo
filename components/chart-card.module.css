@@ -1,0 +1,180 @@
+:root {
+  --chart-border: rgba(0, 0, 0, 0.06);
+  --chart-shadow: 0 10px 20px rgba(17, 24, 39, 0.08);
+  --pill-border: rgba(0, 0, 0, 0.15);
+  --pill-text: rgba(0, 0, 0, 0.55);
+}
+
+.card {
+  border: 1px solid var(--chart-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--chart-shadow);
+  padding: 20px;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+  margin-bottom: 12px;
+}
+
+.cardTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.cardSub {
+  font-size: 12px;
+  color: var(--muted);
+}
+
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.chartHeaderActions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+}
+
+.chartBody {
+  width: 100%;
+  height: 260px;
+}
+
+.pillToggle {
+  border-radius: 999px;
+  border: 1px solid var(--pill-border);
+  padding: 4px 10px;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--pill-text);
+  background: rgba(255, 255, 255, 0.85);
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.pillActive {
+  opacity: 1;
+}
+
+.pillInactive {
+  opacity: 0.85;
+}
+
+.pillToggle:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 12px rgba(17, 24, 39, 0.12);
+}
+
+.tooltip {
+  background: #fff;
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 12px;
+  box-shadow: 0 12px 20px rgba(17, 24, 39, 0.12);
+  padding: 10px 12px;
+  font-size: 12px;
+  color: var(--ink);
+}
+
+.tooltipTitle {
+  font-weight: 700;
+  margin-bottom: 6px;
+}
+
+.tooltipUnit {
+  font-size: 11px;
+  color: var(--muted);
+  margin-bottom: 6px;
+}
+
+.tooltipDivider {
+  height: 1px;
+  background: rgba(0, 0, 0, 0.08);
+  margin: 6px 0;
+}
+
+.tooltipRow {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.tooltipLabel {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 999px;
+}
+
+.sparkCard {
+  border: 1px solid var(--chart-border);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: var(--chart-shadow);
+  padding: 20px;
+  display: grid;
+  gap: 10px;
+}
+
+.sparkHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+
+.sparkTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.sparkValue {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.toggleGroup {
+  display: inline-flex;
+  gap: 6px;
+}
+
+@media (max-width: 720px) {
+  .card {
+    padding: 16px;
+  }
+
+  .sparkCard {
+    padding: 16px;
+  }
+  .chartBody {
+    height: 200px;
+  }
+  .chartHeaderActions {
+    width: 100%;
+    align-items: flex-start;
+  }
+  .cardHeader {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  .legend {
+    justify-content: flex-start;
+  }
+}

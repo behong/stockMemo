@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getKstDate } from "@/lib/time";
 
 export const runtime = "nodejs";
+export const revalidate = 600;
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
@@ -33,6 +34,7 @@ export async function GET(request: Request) {
         kospiInstitution: true,
         kospiInstitutionQty: true,
         kospiChangePct: true,
+        kospiIndexValue: true,
         kospiAccVolume: true,
         kospiAccAmount: true,
         kosdaqIndividual: true,
@@ -42,6 +44,7 @@ export async function GET(request: Request) {
         kosdaqInstitution: true,
         kosdaqInstitutionQty: true,
         kosdaqChangePct: true,
+        kosdaqIndexValue: true,
         kosdaqAccVolume: true,
         kosdaqAccAmount: true,
         nasdaqChangePct: true,
@@ -49,7 +52,14 @@ export async function GET(request: Request) {
       },
     });
 
-    return NextResponse.json({ date, records });
+    return NextResponse.json(
+      { date, records },
+      {
+        headers: {
+          "Cache-Control": "public, s-maxage=600, stale-while-revalidate=60",
+        },
+      },
+    );
   } catch (error) {
     console.error(error);
     return NextResponse.json(

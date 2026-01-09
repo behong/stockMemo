@@ -18,6 +18,7 @@ function mockSnapshot(): MarketSnapshot {
     institution: randomBetween(-300000000, 300000000),
     institutionQty: randomBetween(-120000, 120000),
     changePct: randomSigned(3, 2),
+    indexValue: randomBetween(2000, 3500, 2),
     accVolume: randomBetween(100000, 9000000),
     accAmount: randomBetween(10000, 9000000),
   };

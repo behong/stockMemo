@@ -3,7 +3,9 @@
 import type { ChangeEvent, CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { formatPercent, getSignedColor } from "@/lib/format";
+import { formatPercent } from "@/lib/format";
+
+import UnifiedMarketChart from "@/components/UnifiedMarketChart";
 
 import styles from "./page.module.css";
 
@@ -17,6 +19,7 @@ type RecordRow = {
   kospiInstitution: number;
   kospiInstitutionQty: number;
   kospiChangePct: number;
+  kospiIndexValue: number;
   kospiAccVolume: number;
   kospiAccAmount: number;
   kosdaqIndividual: number;
@@ -26,6 +29,7 @@ type RecordRow = {
   kosdaqInstitution: number;
   kosdaqInstitutionQty: number;
   kosdaqChangePct: number;
+  kosdaqIndexValue: number;
   kosdaqAccVolume: number;
   kosdaqAccAmount: number;
   nasdaqChangePct: number;
@@ -74,6 +78,11 @@ const COPY: Record<Language, Record<string, string>> = {
     languageLabel: "\uC5B8\uC5B4",
     langKo: "\uD55C\uAD6D\uC5B4",
     langEn: "\uC601\uC5B4",
+    chartUnifiedTitle: "\uB9E4\uB9E4 \uB3D9\uD5A5 & \uC9C0\uC218",
+    chartUnifiedSubtitle:
+      "\uC88C: \uC21C\uB9E4\uC218 \uAE08\uC561 (\uBC31\uB9CC\uC6D0) / \uC6B0: \uC9C0\uC218 \uD3EC\uC778\uD2B8",
+    chartFlowUnit: "\uC21C\uB9E4\uC218 \uAE08\uC561 (\uBC31\uB9CC\uC6D0)",
+    chartIndexLabel: "\uC9C0\uC218",
   },
   en: {
     title: "Stock Memo",
@@ -109,18 +118,19 @@ const COPY: Record<Language, Record<string, string>> = {
     languageLabel: "Language",
     langKo: "Korean",
     langEn: "English",
+    chartUnifiedTitle: "Flow Trend & Index",
+    chartUnifiedSubtitle: "Left: Net buy (10M KRW) / Right: Index level",
+    chartFlowUnit: "Net buy amount (10M KRW)",
+    chartIndexLabel: "Index",
   },
 };
+
 function signedClass(value: number, lang: Language): string {
-  const tone = getSignedColor(value);
+  if (value === 0) return styles.neutral;
   if (lang === "ko") {
-    if (tone === "red") return styles.pos;
-    if (tone === "blue") return styles.neg;
-    return styles.neutral;
+    return value < 0 ? styles.pos : styles.neg;
   }
-  if (tone === "red") return styles.neg;
-  if (tone === "blue") return styles.pos;
-  return styles.neutral;
+  return value > 0 ? styles.pos : styles.neg;
 }
 
 const MARKET_OPEN_MINUTES = 9 * 60;
@@ -171,6 +181,7 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [lang, setLang] = useState<Language>("ko");
+  const [indexMode, setIndexMode] = useState<"kospi" | "kosdaq">("kospi");
   const dateInputRef = useRef<HTMLInputElement>(null);
 
   const loadRecords = useCallback(async (requestedDate?: string) => {
@@ -182,7 +193,7 @@ export default function Home() {
       : "/api/records";
 
     try {
-      const response = await fetch(endpoint, { cache: "no-store" });
+      const response = await fetch(endpoint);
 
       if (!response.ok) {
         const payload = await response.json().catch(() => null);
@@ -250,6 +261,18 @@ export default function Home() {
   const displayRecords = useMemo(
     () => records.filter((record) => isMarketTime(record.time)),
     [records],
+  );
+  const chartData = useMemo(
+    () =>
+      displayRecords.map((record) => ({
+        time: record.time,
+        individual: record.kospiIndividual,
+        foreign: record.kospiForeign,
+        institutional: record.kospiInstitution,
+        kospiIndex: record.kospiIndexValue,
+        kosdaqIndex: record.kosdaqIndexValue,
+      })),
+    [displayRecords],
   );
 
   const statusLabel = useMemo(() => {
@@ -337,33 +360,40 @@ export default function Home() {
     if (jo > 0) {
       const eokThousands = Math.floor(eok / 1000);
       if (eokThousands > 0) {
-        return `${sign}${jo}\uC870 ${eokThousands}\uCC9C\uC5B5 ( ${rawLabel} )`;
+        return `${sign}${jo}\uC870 ${eokThousands}\uCC9C\uC5B5 (${rawLabel})`;
       }
-      return `${sign}${jo}\uC870 ( ${rawLabel} )`;
+      return `${sign}${jo}\uC870 (${rawLabel})`;
     }
     if (eok === 0) {
-      return `0\uC5B5 ( ${rawLabel} )`;
+      return `0\uC5B5 (${rawLabel})`;
     }
-    return `${sign}${numberToKoreanUnder10000(eok)}\uC5B5 ( ${rawLabel} )`;
+    return `${sign}${numberToKoreanUnder10000(eok)}\uC5B5 (${rawLabel})`;
   };
   const formatQtyAmount = (qty: number, amount: number) => {
-    const qtyLine =
-      lang === "ko"
-        ? `\uC21C\uB9E4\uC218\uC218\uB7C9( ${formatNumberLocal(qty)} )`
-        : `Net Qty (${formatNumberLocal(qty)})`;
+    const qtyLabel = lang === "ko" ? "\uC21C\uB9E4\uC218\uC218\uB7C9 : " : "Net Qty: ";
+    const qtyClass =
+      qty === 0
+        ? styles.qtyNeutral
+        : qty < 0
+          ? styles.qtyNegative
+          : styles.qtyPositive;
     const amountText =
       lang === "ko"
         ? formatAmountKorean(amount)
         : `${formatAmountUnit(amount)} ${amountUnitLabel}`;
     return (
       <span className={styles.qtyAmount}>
-        <span className={styles.qtyLine}>{qtyLine}</span>
+        <span className={styles.qtyLine}>
+          <span className={styles.qtyLabel}>{qtyLabel}</span>
+          <span className={`${styles.qtyValue} ${qtyClass}`}>
+            {formatNumberLocal(qty)}
+          </span>
+        </span>
         <span className={styles.amountValue}>{amountText}</span>
       </span>
     );
   };
 
-  
   return (
     <div className={styles.page}>
       <main className={styles.main}>
@@ -526,12 +556,34 @@ export default function Home() {
           </div>
         </section>
 
+        <section className={styles.chartRow}>
+          <UnifiedMarketChart
+            data={chartData}
+            indexMode={indexMode}
+            onIndexModeChange={setIndexMode}
+            title={text.chartUnifiedTitle}
+            subtitle={text.chartUnifiedSubtitle}
+            unitLabel={text.chartFlowUnit}
+            indexLabel={text.chartIndexLabel}
+            labels={{
+              individual: text.tableIndiv,
+              foreign: text.tableForeign,
+              institutional: text.tableInst,
+              kospi: text.tableKospi,
+              kosdaq: text.tableKosdaq,
+            }}
+            locale={lang === "ko" ? "ko-KR" : "en-US"}
+          />
+        </section>
+
         <section className={styles.tableShell}>
           <div className={styles.tableWrap}>
             <table className={styles.table}>
               <thead>
                 <tr>
-                  <th rowSpan={2}>{text.tableTime}</th>
+                  <th rowSpan={2} className={styles.colTime}>
+                    {text.tableTime}
+                  </th>
                   <th colSpan={4} className={styles.groupKospi}>
                     {text.tableKospi}
                   </th>
@@ -542,15 +594,33 @@ export default function Home() {
                   <th className={styles.groupUsd}>{text.tableUsd}</th>
                 </tr>
                 <tr>
-                  <th className={styles.groupKospi}>{text.tableIndiv}</th>
-                  <th className={styles.groupKospi}>{text.tableForeign}</th>
-                  <th className={styles.groupKospi}>{text.tableInst}</th>
-                  <th className={styles.groupKospi}>{text.tableChange}</th>
-                  <th className={styles.groupKosdaq}>{text.tableIndiv}</th>
-                  <th className={styles.groupKosdaq}>{text.tableForeign}</th>
-                  <th className={styles.groupKosdaq}>{text.tableInst}</th>
-                  <th className={styles.groupKosdaq}>{text.tableChange}</th>
-                  <th className={styles.groupNasdaq}>{text.tableChange}</th>
+                  <th className={`${styles.groupKospi} ${styles.colFlow}`}>
+                    {text.tableIndiv}
+                  </th>
+                  <th className={`${styles.groupKospi} ${styles.colFlow}`}>
+                    {text.tableForeign}
+                  </th>
+                  <th className={`${styles.groupKospi} ${styles.colFlow}`}>
+                    {text.tableInst}
+                  </th>
+                  <th className={`${styles.groupKospi} ${styles.colChange}`}>
+                    {text.tableChange}
+                  </th>
+                  <th className={`${styles.groupKosdaq} ${styles.colFlow}`}>
+                    {text.tableIndiv}
+                  </th>
+                  <th className={`${styles.groupKosdaq} ${styles.colFlow}`}>
+                    {text.tableForeign}
+                  </th>
+                  <th className={`${styles.groupKosdaq} ${styles.colFlow}`}>
+                    {text.tableInst}
+                  </th>
+                  <th className={`${styles.groupKosdaq} ${styles.colChange}`}>
+                    {text.tableChange}
+                  </th>
+                  <th className={`${styles.groupNasdaq} ${styles.colChange}`}>
+                    {text.tableChange}
+                  </th>
                   <th className={styles.groupUsd}>{text.tableRate}</th>
                 </tr>
               </thead>
@@ -572,7 +642,7 @@ export default function Home() {
                         {record.time}
                       </td>
                       <td
-                        className={`${styles.colKospi} ${styles.num} ${signedClass(
+                        className={`${styles.colKospi} ${styles.colFlow} ${styles.num} ${signedClass(
                           record.kospiIndividual,
                           lang,
                         )}`}
@@ -583,7 +653,7 @@ export default function Home() {
                         )}
                       </td>
                       <td
-                        className={`${styles.colKospi} ${styles.num} ${signedClass(
+                        className={`${styles.colKospi} ${styles.colFlow} ${styles.num} ${signedClass(
                           record.kospiForeign,
                           lang,
                         )}`}
@@ -594,7 +664,7 @@ export default function Home() {
                         )}
                       </td>
                       <td
-                        className={`${styles.colKospi} ${styles.num} ${signedClass(
+                        className={`${styles.colKospi} ${styles.colFlow} ${styles.num} ${signedClass(
                           record.kospiInstitution,
                           lang,
                         )}`}
@@ -605,7 +675,7 @@ export default function Home() {
                         )}
                       </td>
                       <td
-                        className={`${styles.colKospi} ${styles.num} ${signedClass(
+                        className={`${styles.colKospi} ${styles.colChange} ${styles.num} ${signedClass(
                           record.kospiChangePct,
                           lang,
                         )}`}
@@ -613,7 +683,7 @@ export default function Home() {
                         {formatPercent(record.kospiChangePct)}
                       </td>
                       <td
-                        className={`${styles.colKosdaq} ${styles.num} ${signedClass(
+                        className={`${styles.colKosdaq} ${styles.colFlow} ${styles.num} ${signedClass(
                           record.kosdaqIndividual,
                           lang,
                         )}`}
@@ -624,7 +694,7 @@ export default function Home() {
                         )}
                       </td>
                       <td
-                        className={`${styles.colKosdaq} ${styles.num} ${signedClass(
+                        className={`${styles.colKosdaq} ${styles.colFlow} ${styles.num} ${signedClass(
                           record.kosdaqForeign,
                           lang,
                         )}`}
@@ -635,7 +705,7 @@ export default function Home() {
                         )}
                       </td>
                       <td
-                        className={`${styles.colKosdaq} ${styles.num} ${signedClass(
+                        className={`${styles.colKosdaq} ${styles.colFlow} ${styles.num} ${signedClass(
                           record.kosdaqInstitution,
                           lang,
                         )}`}
@@ -646,7 +716,7 @@ export default function Home() {
                         )}
                       </td>
                       <td
-                        className={`${styles.colKosdaq} ${styles.num} ${signedClass(
+                        className={`${styles.colKosdaq} ${styles.colChange} ${styles.num} ${signedClass(
                           record.kosdaqChangePct,
                           lang,
                         )}`}
@@ -654,7 +724,7 @@ export default function Home() {
                         {formatPercent(record.kosdaqChangePct)}
                       </td>
                       <td
-                        className={`${styles.colNasdaq} ${styles.num} ${signedClass(
+                        className={`${styles.colNasdaq} ${styles.colChange} ${styles.num} ${signedClass(
                           record.nasdaqChangePct,
                           lang,
                         )}`}

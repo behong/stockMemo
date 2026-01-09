@@ -210,6 +210,13 @@
   margin-bottom: 24px;
 }
 
+.chartRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  gap: 18px;
+  margin-bottom: 24px;
+}
+
 .summaryCard {
   padding: 16px;
   border-radius: 16px;
@@ -301,6 +308,39 @@
   text-align: center;
 }
 
+.colTime {
+  width: 72px;
+}
+
+.table th.colChange,
+.table td.colChange {
+  width: 72px;
+  max-width: 72px;
+  min-width: 72px;
+  padding-left: 6px;
+  padding-right: 6px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.colFlow {
+  width: 170px;
+  min-width: 170px;
+}
+
+@media (max-width: 900px) {
+  .table th.colChange,
+  .table td.colChange {
+    width: 64px;
+    max-width: 64px;
+    min-width: 64px;
+  }
+  .colFlow {
+    width: 150px;
+    min-width: 150px;
+  }
+}
+
 .groupKospi {
   background: rgba(252, 233, 199, 0.9);
 }
@@ -347,27 +387,48 @@
 .qtyAmount {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 2px;
   width: 100%;
   height: 100%;
-  min-height: 52px;
+  min-height: 46px;
   align-items: flex-end;
   text-align: right;
 }
 
 .qtyLine {
   display: block;
-  font-size: 0.65rem;
+  font-size: 0.62rem;
   line-height: 1.2;
-  color: var(--muted);
+  color: var(--ink);
   white-space: normal;
   word-break: keep-all;
   overflow-wrap: normal;
 }
 
+.qtyLabel {
+  color: var(--ink);
+}
+
+.qtyValue {
+  color: inherit;
+}
+
+.qtyPositive {
+  color: var(--red);
+}
+
+.qtyNegative {
+  color: var(--blue);
+}
+
+.qtyNeutral {
+  color: var(--neutral);
+}
+
 .amountValue {
-  color: var(--muted);
-  font-size: 0.85rem;
+  color: inherit;
+  font-size: 0.78rem;
+  line-height: 1.2;
   margin-top: auto;
   white-space: normal;
   word-break: keep-all;
@@ -452,5 +513,15 @@
 
   .summary {
     grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  }
+
+  .chartRow {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 960px) {
+  .chartRow {
+    grid-template-columns: 1fr;
   }
 }

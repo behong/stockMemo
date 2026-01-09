@@ -19,6 +19,7 @@ type OverseasDailyOutput = {
 
 type IndexTimeOutput = {
   bsop_hour?: string;
+  bstp_nmix_prpr?: string;
   bstp_nmix_prdy_ctrt?: string;
   acml_tr_pbmn?: string;
   acml_vol?: string;
@@ -127,6 +128,7 @@ async function fetchInvestorTrend(
     institution,
     institutionQty,
     changePct: 0,
+    indexValue: 0,
     accVolume: 0,
     accAmount: 0,
   };
@@ -134,12 +136,14 @@ async function fetchInvestorTrend(
 
 type IndexSnapshot = {
   changePct: number;
+  indexValue: number;
   accVolume: number;
   accAmount: number;
 };
 
 function toIndexSnapshot(output: IndexTimeOutput): IndexSnapshot {
   return {
+    indexValue: parseNumber(output.bstp_nmix_prpr),
     changePct: parseNumber(output.bstp_nmix_prdy_ctrt),
     accVolume: parseNumber(output.acml_vol),
     accAmount: parseNumber(output.acml_tr_pbmn),
@@ -773,12 +777,14 @@ export async function fetchRealData(): Promise<MarketData> {
     kospi: {
       ...kospi,
       changePct: kospiIndex.changePct,
+      indexValue: kospiIndex.indexValue,
       accVolume: kospiIndex.accVolume,
       accAmount: kospiIndex.accAmount,
     },
     kosdaq: {
       ...kosdaq,
       changePct: kosdaqIndex.changePct,
+      indexValue: kosdaqIndex.indexValue,
       accVolume: kosdaqIndex.accVolume,
       accAmount: kosdaqIndex.accAmount,
     },
