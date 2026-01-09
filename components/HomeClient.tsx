@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { formatPercent } from "@/lib/format";
 
+import PartnershipFooter from "@/components/PartnershipFooter";
 import UnifiedMarketChart from "@/components/UnifiedMarketChart";
 
 import styles from "@/app/page.module.css";
@@ -789,6 +790,8 @@ export default function HomeClient({
             </table>
           </div>
         </section>
+
+        <PartnershipFooter />
       </main>
     </div>
   );

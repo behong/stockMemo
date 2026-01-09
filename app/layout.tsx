@@ -21,8 +21,9 @@ const plexMono = IBM_Plex_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "스톡 메모 대시보드",
-  description: "시간대별 시장 데이터를 한눈에 확인하세요.",
+  title: "\uC2A4\uD1A1 \uBA54\uBAA8 \uB300\uC2DC\uBCF4\uB4DC",
+  description:
+    "\uC2DC\uAC04\uB300\uBCC4 \uC2DC\uC7A5 \uB370\uC774\uD130\uB97C \uD55C\uB208\uC5D0 \uD655\uC778\uD558\uC138\uC694.",
 };
 
 export default function RootLayout({

@@ -87,7 +87,7 @@ function formatAxisValue(value: number, locale: "ko-KR" | "en-US"): string {
   if (abs >= 10_000) {
     const compact = abs / 10_000;
     const fixed = Number.isInteger(compact) ? 0 : 1;
-    const label = locale === "ko-KR" ? "만" : "10k";
+    const label = locale === "ko-KR" ? "\uB9CC" : "10k";
     return `${sign}${compact.toFixed(fixed)}${label}`;
   }
   return new Intl.NumberFormat(locale).format(value);
