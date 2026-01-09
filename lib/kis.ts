@@ -16,6 +16,7 @@ type KisResponse<T> = {
   output1?: T;
   output2?: unknown;
   rt_cd?: string;
+  msg_cd?: string;
   msg1?: string;
 };
 
@@ -26,6 +27,16 @@ const globalForKis = globalThis as unknown as {
 
 const KIS_TOKEN_NAME = "kis";
 const TOKEN_EXPIRY_BUFFER_MS = 60 * 1000;
+const TOKEN_EXPIRED_CODES = new Set(["EGW00123"]);
+
+function isTokenExpiredMessage(message: string, code?: string): boolean {
+  if (code && TOKEN_EXPIRED_CODES.has(code)) return true;
+  const lower = message.toLowerCase();
+  return (
+    lower.includes("token") &&
+    (lower.includes("만료") || lower.includes("expired"))
+  );
+}
 
 function getRequiredEnv(name: string): string {
   const value = process.env[name];
@@ -152,6 +163,25 @@ async function getAccessToken(): Promise<string> {
   }
 }
 
+async function invalidateToken(reason?: string): Promise<void> {
+  const debug =
+    process.env.KIS_DEBUG === "1" || process.env.KIS_DEBUG === "true";
+  if (debug) {
+    console.warn(`[KIS] token invalidated${reason ? `: ${reason}` : ""}`);
+  }
+  globalForKis.kisToken = undefined;
+  globalForKis.kisTokenPromise = undefined;
+  try {
+    await prisma.serviceToken.deleteMany({ where: { name: KIS_TOKEN_NAME } });
+  } catch (error) {
+    if (debug) {
+      console.warn(
+        `[KIS] token db delete failed: ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
+  }
+}
+
 export async function kisGet<T>(
   path: string,
   trId: string,
@@ -162,7 +192,6 @@ export async function kisGet<T>(
   const baseUrl = getRequiredEnv("KIS_BASE_URL");
   const appKey = getRequiredEnv("KIS_APP_KEY");
   const appSecret = getRequiredEnv("KIS_APP_SECRET");
-  const accessToken = await getAccessToken();
 
   const url = new URL(path, baseUrl);
   for (const [key, value] of Object.entries(query)) {
@@ -173,53 +202,67 @@ export async function kisGet<T>(
     console.log(`[KIS] request url=${url.toString()} tr_id=${trId}`);
   }
 
-  const response = await fetch(url.toString(), {
-    method: "GET",
-    headers: {
-      "content-type": "application/json; charset=utf-8",
-      authorization: `Bearer ${accessToken}`,
-      appkey: appKey,
-      appsecret: appSecret,
-      tr_id: trId,
-      custtype: "P",
-    },
-  });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const accessToken = await getAccessToken();
+    const response = await fetch(url.toString(), {
+      method: "GET",
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        authorization: `Bearer ${accessToken}`,
+        appkey: appKey,
+        appsecret: appSecret,
+        tr_id: trId,
+        custtype: "P",
+      },
+    });
 
-  if (!response.ok) {
-    const text = await response.text();
-    throw new Error(`KIS request failed (${response.status}). ${text}`);
-  }
-
-  const payload = (await response.json()) as KisResponse<T>;
-  if (payload.rt_cd && payload.rt_cd !== "0") {
-    throw new Error(payload.msg1 || "KIS request failed.");
-  }
-
-  if (debug) {
-    const outputValue = payload.output ?? payload.output1 ?? null;
-    const outputKeys =
-      outputValue && typeof outputValue === "object"
-        ? Object.keys(outputValue as Record<string, unknown>)
-        : [];
-    const output2Info = Array.isArray(payload.output2)
-      ? `array(${payload.output2.length})`
-      : payload.output2
-        ? "object"
-        : "none";
-    console.log(
-      `[KIS] ${trId} ${path} query=${JSON.stringify(query)} rt_cd=${payload.rt_cd ?? "?"}`,
-    );
-    console.log(`[KIS] output keys=${outputKeys.join(",")}`);
-    if (outputValue) {
-      console.log(`[KIS] output sample=${JSON.stringify(outputValue)}`);
+    if (!response.ok) {
+      const text = await response.text();
+      if (attempt === 0 && isTokenExpiredMessage(text)) {
+        await invalidateToken(text);
+        continue;
+      }
+      throw new Error(`KIS request failed (${response.status}). ${text}`);
     }
-    console.log(`[KIS] output2=${output2Info}`);
+
+    const payload = (await response.json()) as KisResponse<T>;
+    if (payload.rt_cd && payload.rt_cd !== "0") {
+      const message = payload.msg1 || "KIS request failed.";
+      if (attempt === 0 && isTokenExpiredMessage(message, payload.msg_cd)) {
+        await invalidateToken(message);
+        continue;
+      }
+      throw new Error(message);
+    }
+
+    if (debug) {
+      const outputValue = payload.output ?? payload.output1 ?? null;
+      const outputKeys =
+        outputValue && typeof outputValue === "object"
+          ? Object.keys(outputValue as Record<string, unknown>)
+          : [];
+      const output2Info = Array.isArray(payload.output2)
+        ? `array(${payload.output2.length})`
+        : payload.output2
+          ? "object"
+          : "none";
+      console.log(
+        `[KIS] ${trId} ${path} query=${JSON.stringify(query)} rt_cd=${payload.rt_cd ?? "?"}`,
+      );
+      console.log(`[KIS] output keys=${outputKeys.join(",")}`);
+      if (outputValue) {
+        console.log(`[KIS] output sample=${JSON.stringify(outputValue)}`);
+      }
+      console.log(`[KIS] output2=${output2Info}`);
+    }
+
+    const output = payload.output ?? payload.output1;
+    if (!output) {
+      throw new Error("KIS response missing output.");
+    }
+
+    return output;
   }
 
-  const output = payload.output ?? payload.output1;
-  if (!output) {
-    throw new Error("KIS response missing output.");
-  }
-
-  return output;
+  throw new Error("KIS request failed after token refresh.");
 }

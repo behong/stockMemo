@@ -41,39 +41,39 @@ type Language = "ko" | "en";
 
 const COPY: Record<Language, Record<string, string>> = {
   ko: {
-    title: "스톡 메모",
+    title: "\uC2A4\uD1A1 \uBA54\uBAA8",
     subtitle:
-      "코스피/코스닥 수급과 환율을 시간대별로 기록합니다. 날짜를 선택해 흐름을 한 번에 확인하세요.",
-    date: "날짜",
-    refresh: "새로고침",
-    statusReady: "준비됨",
-    statusLoading: "불러오는 중",
-    statusError: "오류",
-    statusDate: "날짜",
-    statusRecords: "레코드",
-    statusLatest: "최근",
-    statusUpdated: "업데이트",
-    summaryKospi: "코스피",
-    summaryKosdaq: "코스닥",
-    summaryNasdaq: "나스닥",
-    summaryUsd: "원/달러",
-    summaryOverseas: "해외",
-    summaryVolume: "거래량",
-    summaryAmount: "거래대금",
-    tableTime: "시간",
-    tableKospi: "코스피",
-    tableKosdaq: "코스닥",
-    tableNasdaq: "나스닥",
-    tableUsd: "원/달러",
-    tableIndiv: "개인",
-    tableForeign: "외인",
-    tableInst: "기관",
-    tableChange: "변동 %",
-    tableRate: "환율",
-    empty: "해당 날짜에 데이터가 없습니다.",
-    languageLabel: "언어",
-    langKo: "한국어",
-    langEn: "영어",
+      "\uCF54\uC2A4\uD53C/\uCF54\uC2A4\uB2E5 \uC218\uAE09\uACFC \uD658\uC728\uC744 \uC2DC\uAC04\uB300\uBCC4\uB85C \uAE30\uB85D\uD569\uB2C8\uB2E4. \uB0A0\uC9DC\uB97C \uC120\uD0DD\uD574 \uD750\uB984\uC744 \uD55C \uBC88\uC5D0 \uD655\uC778\uD558\uC138\uC694.",
+    date: "\uB0A0\uC9DC",
+    refresh: "\uC0C8\uB85C\uACE0\uCE68",
+    statusReady: "\uC900\uBE44\uB428",
+    statusLoading: "\uBD88\uB7EC\uC624\uB294 \uC911",
+    statusError: "\uC624\uB958",
+    statusDate: "\uB0A0\uC9DC",
+    statusRecords: "\uB808\uCF54\uB4DC",
+    statusLatest: "\uCD5C\uADFC",
+    statusUpdated: "\uC5C5\uB370\uC774\uD2B8",
+    summaryKospi: "\uCF54\uC2A4\uD53C",
+    summaryKosdaq: "\uCF54\uC2A4\uB2E5",
+    summaryNasdaq: "\uB098\uC2A4\uB2E5",
+    summaryUsd: "\uC6D0/\uB2EC\uB7EC",
+    summaryOverseas: "\uD574\uC678",
+    summaryVolume: "\uAC70\uB798\uB7C9",
+    summaryAmount: "\uAC70\uB798\uB300\uAE08",
+    tableTime: "\uC2DC\uAC04",
+    tableKospi: "\uCF54\uC2A4\uD53C",
+    tableKosdaq: "\uCF54\uC2A4\uB2E5",
+    tableNasdaq: "\uB098\uC2A4\uB2E5",
+    tableUsd: "\uC6D0/\uB2EC\uB7EC",
+    tableIndiv: "\uAC1C\uC778",
+    tableForeign: "\uC678\uC778",
+    tableInst: "\uAE30\uAD00",
+    tableChange: "\uBCC0\uB3D9 %",
+    tableRate: "\uD658\uC728",
+    empty: "\uD574\uB2F9 \uB0A0\uC9DC\uC5D0 \uB370\uC774\uD130\uAC00 \uC5C6\uC2B5\uB2C8\uB2E4.",
+    languageLabel: "\uC5B8\uC5B4",
+    langKo: "\uD55C\uAD6D\uC5B4",
+    langEn: "\uC601\uC5B4",
   },
   en: {
     title: "Stock Memo",
@@ -111,7 +111,6 @@ const COPY: Record<Language, Record<string, string>> = {
     langEn: "English",
   },
 };
-
 function signedClass(value: number, lang: Language): string {
   const tone = getSignedColor(value);
   if (lang === "ko") {
@@ -148,11 +147,11 @@ function timeToMinutes(value: string): number | null {
   return hour * 60 + minute;
 }
 
-const KOREAN_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
-const KOREAN_UNITS = ["", "십", "백", "천"];
+const KOREAN_DIGITS = ["", "\uC77C", "\uC774", "\uC0BC", "\uC0AC", "\uC624", "\uC721", "\uCE60", "\uD314", "\uAD6C"];
+const KOREAN_UNITS = ["", "\uC2ED", "\uBC31", "\uCC9C"];
 
 function numberToKoreanUnder10000(value: number): string {
-  if (value === 0) return "영";
+  if (value === 0) return "\uC601";
   const text = String(value).padStart(4, "0");
   let output = "";
   for (let i = 0; i < text.length; i += 1) {
@@ -338,33 +337,28 @@ export default function Home() {
     if (jo > 0) {
       const eokThousands = Math.floor(eok / 1000);
       if (eokThousands > 0) {
-        return `${sign}${jo}조 ${eokThousands}천억 (${rawLabel})`;
+        return `${sign}${jo}\uC870 ${eokThousands}\uCC9C\uC5B5 ( ${rawLabel} )`;
       }
-      return `${sign}${jo}조 (${rawLabel})`;
+      return `${sign}${jo}\uC870 ( ${rawLabel} )`;
     }
     if (eok === 0) {
-      return `0억 (${rawLabel})`;
+      return `0\uC5B5 ( ${rawLabel} )`;
     }
-    return `${sign}${numberToKoreanUnder10000(eok)}억 (${rawLabel})`;
+    return `${sign}${numberToKoreanUnder10000(eok)}\uC5B5 ( ${rawLabel} )`;
   };
   const formatQtyAmount = (qty: number, amount: number) => {
-    const amountLabel =
+    const qtyLine =
+      lang === "ko"
+        ? `\uC21C\uB9E4\uC218\uC218\uB7C9( ${formatNumberLocal(qty)} )`
+        : `Net Qty (${formatNumberLocal(qty)})`;
+    const amountText =
       lang === "ko"
         ? formatAmountKorean(amount)
         : `${formatAmountUnit(amount)} ${amountUnitLabel}`;
     return (
       <span className={styles.qtyAmount}>
-        <span className={styles.amountTop}>
-          <span>{formatNumberLocal(amount)}</span>
-          <span className={styles.qtyNote}>
-            {lang === "ko"
-              ? `수량 ${formatNumberLocal(qty)}`
-              : `Qty ${formatNumberLocal(qty)}`}
-          </span>
-        </span>
-        <span className={styles.amountValue} title={amountLabel}>
-          {amountLabel}
-        </span>
+        <span className={styles.qtyLine}>{qtyLine}</span>
+        <span className={styles.amountValue}>{amountText}</span>
       </span>
     );
   };
