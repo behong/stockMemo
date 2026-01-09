@@ -44,8 +44,8 @@ type UnifiedMarketChartProps = {
 
 const COLORS = {
   individual: "#E24A3B",
-  foreign: "#2B6DE0",
-  institutional: "#6B7280",
+  foreign: "#2563EB",
+  institutional: "#10B981",
   index: "#111827",
 };
 
