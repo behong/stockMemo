@@ -347,16 +347,27 @@ export default function Home() {
     }
     return `${sign}${numberToKoreanUnder10000(eok)}억 (${rawLabel})`;
   };
-  const formatQtyAmount = (qty: number, amount: number) => (
-    <span className={styles.qtyAmount}>
-      <span>{formatNumberLocal(qty)}</span>
-      <span className={styles.amountValue}>
-        {lang === "ko"
-          ? formatAmountKorean(amount)
-          : `${formatAmountUnit(amount)} ${amountUnitLabel}`}
+  const formatQtyAmount = (qty: number, amount: number) => {
+    const amountLabel =
+      lang === "ko"
+        ? formatAmountKorean(amount)
+        : `${formatAmountUnit(amount)} ${amountUnitLabel}`;
+    return (
+      <span className={styles.qtyAmount}>
+        <span className={styles.amountTop}>
+          <span>{formatNumberLocal(amount)}</span>
+          <span className={styles.qtyNote}>
+            {lang === "ko"
+              ? `수량 ${formatNumberLocal(qty)}`
+              : `Qty ${formatNumberLocal(qty)}`}
+          </span>
+        </span>
+        <span className={styles.amountValue} title={amountLabel}>
+          {amountLabel}
+        </span>
       </span>
-    </span>
-  );
+    );
+  };
 
   
   return (
