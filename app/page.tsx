@@ -1,7 +1,7 @@
 "use client";
 
 import type { ChangeEvent, CSSProperties } from "react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { formatPercent, getSignedColor } from "@/lib/format";
 
@@ -138,6 +138,16 @@ function isMarketTime(value: string): boolean {
   return minutes >= MARKET_OPEN_MINUTES && minutes <= MARKET_CLOSE_MINUTES;
 }
 
+function timeToMinutes(value: string): number | null {
+  const [hourText, minuteText] = value.split(":");
+  const hour = Number(hourText);
+  const minute = Number(minuteText);
+  if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+    return null;
+  }
+  return hour * 60 + minute;
+}
+
 const KOREAN_DIGITS = ["", "일", "이", "삼", "사", "오", "육", "칠", "팔", "구"];
 const KOREAN_UNITS = ["", "십", "백", "천"];
 
@@ -162,6 +172,7 @@ export default function Home() {
   const [errorMessage, setErrorMessage] = useState("");
   const [lastUpdated, setLastUpdated] = useState<Date | null>(null);
   const [lang, setLang] = useState<Language>("ko");
+  const dateInputRef = useRef<HTMLInputElement>(null);
 
   const loadRecords = useCallback(async (requestedDate?: string) => {
     setStatus("loading");
@@ -223,6 +234,15 @@ export default function Home() {
     }
   };
 
+  const openDatePicker = useCallback(() => {
+    const input = dateInputRef.current;
+    if (!input) return;
+    if (typeof input.showPicker === "function") {
+      input.showPicker();
+    }
+    input.focus();
+  }, []);
+
   const handleRefresh = () => {
     loadRecords(date || undefined);
   };
@@ -246,7 +266,45 @@ export default function Home() {
   }, [status]);
 
   const lastRecord = displayRecords[displayRecords.length - 1];
-  const latestTime = lastRecord?.time ?? "--";
+  const nowMinutes = useMemo(() => {
+    const formatter = new Intl.DateTimeFormat("en-GB", {
+      timeZone: "Asia/Seoul",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+    const parts = formatter.formatToParts(new Date());
+    const values: Record<string, string> = {};
+    for (const part of parts) {
+      if (part.type !== "literal") {
+        values[part.type] = part.value;
+      }
+    }
+    const hour = Number(values.hour ?? "0");
+    const minute = Number(values.minute ?? "0");
+    if (!Number.isFinite(hour) || !Number.isFinite(minute)) {
+      return null;
+    }
+    return hour * 60 + minute;
+  }, [lastUpdated, date]);
+  const currentRecord = useMemo(() => {
+    if (displayRecords.length === 0) return null;
+    const now = nowMinutes;
+    let chosen: RecordRow | null = null;
+    let chosenMinutes = -1;
+    for (const record of displayRecords) {
+      const minutes = timeToMinutes(record.time);
+      if (minutes === null) continue;
+      if (now !== null && minutes > now) continue;
+      if (minutes >= chosenMinutes) {
+        chosen = record;
+        chosenMinutes = minutes;
+      }
+    }
+    return chosen ?? displayRecords[displayRecords.length - 1];
+  }, [displayRecords, nowMinutes]);
+  const summaryRecord = currentRecord ?? lastRecord;
+  const latestTime = summaryRecord?.time ?? "--";
   const recordCount = displayRecords.length;
   const numberFormatter = useMemo(
     () => new Intl.NumberFormat(lang === "ko" ? "ko-KR" : "en-US"),
@@ -310,13 +368,15 @@ export default function Home() {
             <p className={styles.subtitle}>{text.subtitle}</p>
           </div>
           <div className={styles.controls}>
-            <label className={styles.dateControl}>
+            <label className={styles.dateControl} onClick={openDatePicker}>
               {text.date}
               <input
                 className={styles.dateInput}
                 type="date"
                 value={date}
+                ref={dateInputRef}
                 onChange={handleDateChange}
+                onClick={openDatePicker}
               />
             </label>
             <button
