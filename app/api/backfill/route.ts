@@ -9,6 +9,7 @@ export const runtime = "nodejs";
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const TIME_REGEX = /^\d{2}:\d{2}$/;
 const MAX_BATCH = 200;
+const BACKFILL_DELAY_MS = 350;
 
 type BackfillBody = {
   date?: string;
@@ -31,6 +32,10 @@ function formatMinutes(value: number): string {
   const hour = Math.floor(value / 60);
   const minute = value % 60;
   return `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
 export async function POST(request: Request) {
@@ -104,56 +109,70 @@ export async function POST(request: Request) {
   }
 
   try {
+    const failures: Array<{ time: string; error: string }> = [];
     for (const time of times) {
-      const data = await fetchMarketData();
-      const recordPayload = {
-        kospiIndividual: data.kospi.individual,
-        kospiIndividualQty: data.kospi.individualQty,
-        kospiForeign: data.kospi.foreign,
-        kospiForeignQty: data.kospi.foreignQty,
-        kospiInstitution: data.kospi.institution,
-        kospiInstitutionQty: data.kospi.institutionQty,
-        kospiChangePct: data.kospi.changePct,
-        kospiIndexValue: data.kospi.indexValue,
-        kospiAccVolume: data.kospi.accVolume,
-        kospiAccAmount: data.kospi.accAmount,
-        kosdaqIndividual: data.kosdaq.individual,
-        kosdaqIndividualQty: data.kosdaq.individualQty,
-        kosdaqForeign: data.kosdaq.foreign,
-        kosdaqForeignQty: data.kosdaq.foreignQty,
-        kosdaqInstitution: data.kosdaq.institution,
-        kosdaqInstitutionQty: data.kosdaq.institutionQty,
-        kosdaqChangePct: data.kosdaq.changePct,
-        kosdaqIndexValue: data.kosdaq.indexValue,
-        kosdaqAccVolume: data.kosdaq.accVolume,
-        kosdaqAccAmount: data.kosdaq.accAmount,
-        nasdaqChangePct: data.nasdaqChangePct,
-        usdkrw: data.usdkrw,
-      };
+      try {
+        const data = await fetchMarketData();
+        const recordPayload = {
+          kospiIndividual: data.kospi.individual,
+          kospiIndividualQty: data.kospi.individualQty,
+          kospiForeign: data.kospi.foreign,
+          kospiForeignQty: data.kospi.foreignQty,
+          kospiInstitution: data.kospi.institution,
+          kospiInstitutionQty: data.kospi.institutionQty,
+          kospiChangePct: data.kospi.changePct,
+          kospiIndexValue: data.kospi.indexValue,
+          kospiAccVolume: data.kospi.accVolume,
+          kospiAccAmount: data.kospi.accAmount,
+          kosdaqIndividual: data.kosdaq.individual,
+          kosdaqIndividualQty: data.kosdaq.individualQty,
+          kosdaqForeign: data.kosdaq.foreign,
+          kosdaqForeignQty: data.kosdaq.foreignQty,
+          kosdaqInstitution: data.kosdaq.institution,
+          kosdaqInstitutionQty: data.kosdaq.institutionQty,
+          kosdaqChangePct: data.kosdaq.changePct,
+          kosdaqIndexValue: data.kosdaq.indexValue,
+          kosdaqAccVolume: data.kosdaq.accVolume,
+          kosdaqAccAmount: data.kosdaq.accAmount,
+          nasdaqChangePct: data.nasdaqChangePct,
+          usdkrw: data.usdkrw,
+        };
 
-      await prisma.record.upsert({
-        where: {
-          date_time: {
+        await prisma.record.upsert({
+          where: {
+            date_time: {
+              date,
+              time,
+            },
+          },
+          update: recordPayload,
+          create: {
             date,
             time,
+            ...recordPayload,
           },
-        },
-        update: recordPayload,
-        create: {
-          date,
+        });
+      } catch (error) {
+        failures.push({
           time,
-          ...recordPayload,
-        },
-      });
+          error: error instanceof Error ? error.message : String(error),
+        });
+      }
+
+      if (BACKFILL_DELAY_MS > 0) {
+        await sleep(BACKFILL_DELAY_MS);
+      }
     }
 
     return NextResponse.json({
-      ok: true,
+      ok: failures.length === 0,
+      partial: failures.length > 0,
       date,
       count: times.length,
       startTime,
       endTime,
       intervalMinutes,
+      failures,
     });
   } catch (error) {
     console.error(error);

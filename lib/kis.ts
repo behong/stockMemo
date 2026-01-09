@@ -28,6 +28,8 @@ const globalForKis = globalThis as unknown as {
 const KIS_TOKEN_NAME = "kis";
 const TOKEN_EXPIRY_BUFFER_MS = 60 * 1000;
 const TOKEN_EXPIRED_CODES = new Set(["EGW00123"]);
+const FETCH_RETRY_DELAYS_MS = [500, 1000, 2000];
+const REQUEST_SPACING_MS = 350;
 
 function isTokenExpiredMessage(message: string, code?: string): boolean {
   if (code && TOKEN_EXPIRED_CODES.has(code)) return true;
@@ -44,6 +46,37 @@ function getRequiredEnv(name: string): string {
     throw new Error(`${name} is not set.`);
   }
   return value;
+}
+
+function sleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function fetchWithRetry(
+  url: string,
+  options: RequestInit,
+  debug: boolean,
+): Promise<Response> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < FETCH_RETRY_DELAYS_MS.length; attempt += 1) {
+    if (REQUEST_SPACING_MS > 0) {
+      await sleep(REQUEST_SPACING_MS);
+    }
+    try {
+      return await fetch(url, options);
+    } catch (error) {
+      lastError = error;
+      if (debug) {
+        console.warn(
+          `[KIS] fetch error attempt ${attempt + 1}/${FETCH_RETRY_DELAYS_MS.length}: ${error instanceof Error ? error.message : String(error)}`,
+        );
+      }
+      if (attempt < FETCH_RETRY_DELAYS_MS.length - 1) {
+        await sleep(FETCH_RETRY_DELAYS_MS[attempt]);
+      }
+    }
+  }
+  throw lastError;
 }
 
 async function requestToken(): Promise<TokenCache> {
@@ -204,17 +237,28 @@ export async function kisGet<T>(
 
   for (let attempt = 0; attempt < 2; attempt += 1) {
     const accessToken = await getAccessToken();
-    const response = await fetch(url.toString(), {
-      method: "GET",
-      headers: {
-        "content-type": "application/json; charset=utf-8",
-        authorization: `Bearer ${accessToken}`,
-        appkey: appKey,
-        appsecret: appSecret,
-        tr_id: trId,
-        custtype: "P",
-      },
-    });
+    let response: Response;
+    try {
+      response = await fetchWithRetry(
+        url.toString(),
+        {
+          method: "GET",
+          headers: {
+            "content-type": "application/json; charset=utf-8",
+            authorization: `Bearer ${accessToken}`,
+            appkey: appKey,
+            appsecret: appSecret,
+            tr_id: trId,
+            custtype: "P",
+          },
+        },
+        debug,
+      );
+    } catch (error) {
+      throw new Error(
+        `KIS request failed (network). ${error instanceof Error ? error.message : String(error)}`,
+      );
+    }
 
     if (!response.ok) {
       const text = await response.text();
