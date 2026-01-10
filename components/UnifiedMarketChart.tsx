@@ -31,6 +31,10 @@ type UnifiedMarketChartProps = {
   subtitle: string;
   unitLabel: string;
   indexLabel: string;
+  notice?: {
+    title: string;
+    description: string;
+  } | null;
   labels: {
     individual: string;
     foreign: string;
@@ -137,6 +141,7 @@ export default function UnifiedMarketChart({
   subtitle,
   unitLabel,
   indexLabel,
+  notice,
   labels,
   locale,
   height,
@@ -263,85 +268,99 @@ export default function UnifiedMarketChart({
         </div>
       </div>
       <div className={styles.chartBody} style={chartBodyStyle}>
-        <ResponsiveContainer width="100%" height="100%">
-          <LineChart data={data} margin={{ top: 8, right: 24, left: 6, bottom: 8 }}>
-            <CartesianGrid vertical={false} stroke="rgba(17,24,39,0.06)" />
-            <XAxis
-              dataKey="time"
-              tick={{ fontSize: 12, fill: "rgba(17,24,39,0.55)" }}
-              axisLine={false}
-              tickLine={false}
-            />
-            <YAxis
-              yAxisId="left"
-              tick={{ fontSize: 12, fill: "rgba(17,24,39,0.55)" }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(value) => formatAxisValue(value, locale)}
-            />
-            <YAxis
-              yAxisId="right"
-              orientation="right"
-              tick={{ fontSize: 12, fill: "rgba(17,24,39,0.55)" }}
-              axisLine={false}
-              tickLine={false}
-              tickFormatter={(value) => formatIndexValue(value)}
-            />
-            <Tooltip
-              content={
-                <UnifiedTooltip
-                  labelMap={labelMap}
-                  unitLabel={unitLabel}
-                  indexLabel={indexLabelText}
-                  locale={locale}
-                  indexKey={indexKey}
+        <div
+          className={`${styles.chartCanvas} ${
+            notice ? styles.chartCanvasBlur : ""
+          }`}
+        >
+          <ResponsiveContainer width="100%" height="100%">
+            <LineChart data={data} margin={{ top: 8, right: 24, left: 6, bottom: 8 }}>
+              <CartesianGrid vertical={false} stroke="rgba(17,24,39,0.06)" />
+              <XAxis
+                dataKey="time"
+                tick={{ fontSize: 12, fill: "rgba(17,24,39,0.55)" }}
+                axisLine={false}
+                tickLine={false}
+              />
+              <YAxis
+                yAxisId="left"
+                tick={{ fontSize: 12, fill: "rgba(17,24,39,0.55)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(value) => formatAxisValue(value, locale)}
+              />
+              <YAxis
+                yAxisId="right"
+                orientation="right"
+                tick={{ fontSize: 12, fill: "rgba(17,24,39,0.55)" }}
+                axisLine={false}
+                tickLine={false}
+                tickFormatter={(value) => formatIndexValue(value)}
+              />
+              <Tooltip
+                content={
+                  <UnifiedTooltip
+                    labelMap={labelMap}
+                    unitLabel={unitLabel}
+                    indexLabel={indexLabelText}
+                    locale={locale}
+                    indexKey={indexKey}
+                  />
+                }
+              />
+              {visible.individual && (
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="individual"
+                  stroke={COLORS.individual}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3 }}
                 />
-              }
-            />
-            {visible.individual && (
+              )}
+              {visible.foreign && (
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="foreign"
+                  stroke={COLORS.foreign}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3 }}
+                />
+              )}
+              {visible.institutional && (
+                <Line
+                  yAxisId="left"
+                  type="monotone"
+                  dataKey="institutional"
+                  stroke={COLORS.institutional}
+                  strokeWidth={2}
+                  dot={false}
+                  activeDot={{ r: 3 }}
+                />
+              )}
               <Line
-                yAxisId="left"
+                yAxisId="right"
                 type="monotone"
-                dataKey="individual"
-                stroke={COLORS.individual}
+                dataKey={indexKey}
+                stroke={COLORS.index}
                 strokeWidth={2}
                 dot={false}
                 activeDot={{ r: 3 }}
               />
-            )}
-            {visible.foreign && (
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="foreign"
-                stroke={COLORS.foreign}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 3 }}
-              />
-            )}
-            {visible.institutional && (
-              <Line
-                yAxisId="left"
-                type="monotone"
-                dataKey="institutional"
-                stroke={COLORS.institutional}
-                strokeWidth={2}
-                dot={false}
-                activeDot={{ r: 3 }}
-              />
-            )}
-            <Line
-              yAxisId="right"
-              type="monotone"
-              dataKey={indexKey}
-              stroke={COLORS.index}
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 3 }}
-            />
-          </LineChart>
-        </ResponsiveContainer>
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+        {notice && (
+          <div className={styles.chartNotice}>
+            <div className={styles.chartNoticeCard}>
+              <div className={styles.chartNoticeTitle}>{notice.title}</div>
+              <div className={styles.chartNoticeText}>{notice.description}</div>
+            </div>
+          </div>
+        )}
       </div>
     </section>
   );

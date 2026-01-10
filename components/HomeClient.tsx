@@ -349,6 +349,13 @@ export default function HomeClient({
     }
     return null;
   }, [date, displayRecords.length, text]);
+  const holidayNotice =
+    holidayStatus?.type === "holiday"
+      ? {
+          title: text.holidayLabel,
+          description: holidayStatus.label,
+        }
+      : null;
   const chartData = useMemo(
     () =>
       displayRecords.map((record) => ({
@@ -657,6 +664,7 @@ export default function HomeClient({
             subtitle={text.chartUnifiedSubtitle}
             unitLabel={text.chartFlowUnit}
             indexLabel={text.chartIndexLabel}
+            notice={holidayNotice}
             labels={{
               individual: text.tableIndiv,
               foreign: text.tableForeign,
