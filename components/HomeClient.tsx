@@ -322,7 +322,11 @@ export default function HomeClient({
     const input = dateInputRef.current;
     if (!input) return;
     if (typeof input.showPicker === "function") {
-      input.showPicker();
+      try {
+        input.showPicker();
+      } catch {
+        // Ignore if the browser blocks programmatic picker opening.
+      }
     }
     input.focus();
   }, []);
