@@ -4,6 +4,7 @@ import type { ChangeEvent, CSSProperties } from "react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import { formatPercent } from "@/lib/format";
+import { MARKET_HOLIDAYS } from "@/lib/market-holidays";
 
 import PartnershipFooter from "@/components/PartnershipFooter";
 import UnifiedMarketChart from "@/components/UnifiedMarketChart";
@@ -57,7 +58,7 @@ const COPY: Record<Language, Record<string, string>> = {
   ko: {
     title: "\uC2A4\uD1A1 \uBA54\uBAA8",
     subtitle:
-      "\uCF54\uC2A4\uD53C/\uCF54\uC2A4\uB2E5 \uC218\uAE09\uACFC \uD658\uC728\uC744 \uC2DC\uAC04\uB300\uBCC4\uB85C \uAE30\uB85D\uD569\uB2C8\uB2E4. \uB0A0\uC9DC\uB97C \uC120\uD0DD\uD574 \uD750\uB984\uC744 \uD55C \uBC88\uC5D0 \uD655\uC778\uD558\uC138\uC694.",
+      "\uCF54\uC2A4\uD53C/\uCF54\uC2A4\uB2E5 \uC218\uAE09\uACFC \uD658\uC728\uC744 \uC2DC\uAC04\uB300\uBCC4\uB85C \uAE30\uB85D\uD569\uB2C8\uB2E4.\n\uB0A0\uC9DC\uB97C \uC120\uD0DD\uD574 \uD750\uB984\uC744 \uD55C \uBC88\uC5D0 \uD655\uC778\uD558\uC138\uC694.",
     date: "\uB0A0\uC9DC",
     refresh: "\uC0C8\uB85C\uACE0\uCE68",
     statusReady: "\uC900\uBE44\uB428",
@@ -93,6 +94,11 @@ const COPY: Record<Language, Record<string, string>> = {
       "\uC88C: \uC21C\uB9E4\uC218 \uAE08\uC561 (\uBC31\uB9CC\uC6D0) / \uC6B0: \uC9C0\uC218 \uD3EC\uC778\uD2B8",
     chartFlowUnit: "\uC21C\uB9E4\uC218 \uAE08\uC561 (\uBC31\uB9CC\uC6D0)",
     chartIndexLabel: "\uC9C0\uC218",
+    holidayLabel: "\uD734\uC7A5 \uC548\uB0B4",
+    holidayWeekend: "\uC8FC\uB9D0",
+    holidayOfficial: "\uACF5\uD734\uC77C",
+    holidayNoData: "\uB370\uC774\uD130 \uC5C6\uC74C",
+    holidayEmpty: "\uD734\uC7A5\uC77C\uC785\uB2C8\uB2E4.",
   },
   en: {
     title: "Stock Memo",
@@ -132,6 +138,11 @@ const COPY: Record<Language, Record<string, string>> = {
     chartUnifiedSubtitle: "Left: Net buy (10M KRW) / Right: Index level",
     chartFlowUnit: "Net buy amount (10M KRW)",
     chartIndexLabel: "Index",
+    holidayLabel: "Market notice",
+    holidayWeekend: "Weekend",
+    holidayOfficial: "Holiday",
+    holidayNoData: "No data",
+    holidayEmpty: "Market closed.",
   },
 };
 
@@ -145,6 +156,15 @@ function signedClass(value: number, lang: Language): string {
 
 const MARKET_OPEN_MINUTES = 9 * 60;
 const MARKET_CLOSE_MINUTES = 15 * 60 + 30;
+const KST_WEEKDAY_FORMATTER = new Intl.DateTimeFormat("en-US", {
+  timeZone: "Asia/Seoul",
+  weekday: "short",
+});
+const ENV_HOLIDAYS = (process.env.NEXT_PUBLIC_MARKET_HOLIDAYS || "")
+  .split(",")
+  .map((value) => value.trim())
+  .filter(Boolean);
+const HOLIDAY_SET = new Set([...MARKET_HOLIDAYS, ...ENV_HOLIDAYS]);
 
 function isMarketTime(value: string): boolean {
   const [hourText, minuteText] = value.split(":");
@@ -165,6 +185,16 @@ function timeToMinutes(value: string): number | null {
     return null;
   }
   return hour * 60 + minute;
+}
+
+function getKstWeekday(dateText: string): string {
+  const safeDate = new Date(`${dateText}T00:00:00+09:00`);
+  return KST_WEEKDAY_FORMATTER.format(safeDate);
+}
+
+function isWeekendDate(dateText: string): boolean {
+  const weekday = getKstWeekday(dateText);
+  return weekday === "Sat" || weekday === "Sun";
 }
 
 const KOREAN_DIGITS = ["", "\uC77C", "\uC774", "\uC0BC", "\uC0AC", "\uC624", "\uC721", "\uCE60", "\uD314", "\uAD6C"];
@@ -306,6 +336,19 @@ export default function HomeClient({
     () => records.filter((record) => isMarketTime(record.time)),
     [records],
   );
+  const holidayStatus = useMemo(() => {
+    if (!date) return null;
+    if (isWeekendDate(date)) {
+      return { type: "holiday", label: text.holidayWeekend };
+    }
+    if (HOLIDAY_SET.has(date)) {
+      return { type: "holiday", label: text.holidayOfficial };
+    }
+    if (displayRecords.length === 0) {
+      return { type: "nodata", label: text.holidayNoData };
+    }
+    return null;
+  }, [date, displayRecords.length, text]);
   const chartData = useMemo(
     () =>
       displayRecords.map((record) => ({
@@ -509,6 +552,11 @@ export default function HomeClient({
           <span className={styles.pill}>
             {text.statusUpdated}: {lastUpdatedLabel}
           </span>
+          {holidayStatus && (
+            <span className={styles.pill}>
+              {text.holidayLabel}: {holidayStatus.label}
+            </span>
+          )}
           {status === "error" && (
             <span className={styles.errorText}>{errorMessage}</span>
           )}
@@ -672,7 +720,9 @@ export default function HomeClient({
                 {displayRecords.length === 0 ? (
                   <tr>
                     <td colSpan={11} className={styles.emptyState}>
-                      {text.empty}
+                      {holidayStatus?.type === "holiday"
+                        ? text.holidayEmpty
+                        : text.empty}
                     </td>
                   </tr>
                 ) : (
