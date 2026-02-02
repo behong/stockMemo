@@ -36,9 +36,9 @@ const OVERSEAS_DAILY_PATH =
 const OVERSEAS_DAILY_TR_ID = "FHKST03030100";
 const EXCHANGE_RATE_URL =
   process.env.EXCHANGE_RATE_URL || "https://open.er-api.com/v6/latest/USD";
-const FX_PROVIDER = (process.env.FX_PROVIDER || "er-api").toLowerCase();
+const FX_PROVIDER = (process.env.FX_PROVIDER || "yahoo").toLowerCase();
 const FX_INTERVAL = process.env.FX_INTERVAL || "5min";
-const NASDAQ_PROVIDER = (process.env.NASDAQ_PROVIDER || "kis-daily").toLowerCase();
+const NASDAQ_PROVIDER = (process.env.NASDAQ_PROVIDER || "yahoo").toLowerCase();
 const NASDAQ_INTRADAY_SYMBOL = process.env.NASDAQ_INTRADAY_SYMBOL || "QQQ";
 const NASDAQ_YAHOO_SYMBOL = process.env.NASDAQ_YAHOO_SYMBOL || "NQ=F";
 const FX_YAHOO_SYMBOL = process.env.FX_YAHOO_SYMBOL || "USDKRW=X";
