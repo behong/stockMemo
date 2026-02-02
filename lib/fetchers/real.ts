@@ -671,7 +671,13 @@ async function fetchUsdKrw(): Promise<number> {
   if (FX_PROVIDER === "yahoo") {
     return fetchUsdKrwYahoo();
   }
-  return fetchUsdKrwDaily();
+
+  try {
+    return await fetchUsdKrwYahoo();
+  } catch (error) {
+    console.warn("[fx] yahoo failed, falling back to daily", error);
+    return fetchUsdKrwDaily();
+  }
 }
 
 async function fetchNasdaqIntraday(): Promise<number> {
@@ -752,12 +758,17 @@ async function fetchNasdaqChangePct(): Promise<number> {
     return fetchNasdaqYahoo();
   }
 
-  const nasdaqCode = process.env.KIS_NASDAQ_CODE;
-  if (!nasdaqCode) {
-    throw new Error("KIS_NASDAQ_CODE is not set.");
+  try {
+    return await fetchNasdaqYahoo();
+  } catch (error) {
+    console.warn("[nasdaq] yahoo failed, falling back to daily", error);
+    const nasdaqCode = process.env.KIS_NASDAQ_CODE;
+    if (!nasdaqCode) {
+      throw new Error("KIS_NASDAQ_CODE is not set.");
+    }
+    const nasdaq = await fetchOverseasDaily("N", nasdaqCode);
+    return nasdaq.changePct;
   }
-  const nasdaq = await fetchOverseasDaily("N", nasdaqCode);
-  return nasdaq.changePct;
 }
 
 export async function fetchRealData(): Promise<MarketData> {
