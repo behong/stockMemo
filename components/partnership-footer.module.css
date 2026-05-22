@@ -3,6 +3,10 @@
 }
 
 /* 제휴 사이트 섹션 */
+.partnerSection {
+  margin-bottom: 8px;
+}
+
 .sectionTitle {
   font-size: 13px;
   font-weight: 600;

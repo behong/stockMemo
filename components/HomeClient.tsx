@@ -7,6 +7,7 @@ import { formatPercent } from "@/lib/format";
 import { MARKET_HOLIDAYS } from "@/lib/market-holidays";
 
 import PartnershipFooter from "@/components/PartnershipFooter";
+import PartnerSiteGrid from "@/components/PartnerSiteGrid";
 import UnifiedMarketChart from "@/components/UnifiedMarketChart";
 
 import styles from "@/app/page.module.css";
@@ -658,6 +659,8 @@ export default function HomeClient({
             </div>
           </div>
         </section>
+
+        <PartnerSiteGrid />
 
         <section className={styles.chartRow}>
           <UnifiedMarketChart
