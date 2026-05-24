@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Fraunces, IBM_Plex_Mono, Space_Grotesk } from "next/font/google";
+import Script from "next/script";
 import "./globals.css";
 
 const spaceGrotesk = Space_Grotesk({
@@ -31,11 +32,25 @@ export default function RootLayout({
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const googleAnalyticsId = "G-BQFQ7HJJ05";
+
   return (
     <html lang="ko">
       <body
         className={`${spaceGrotesk.variable} ${fraunces.variable} ${plexMono.variable}`}
       >
+        <Script
+          src={`https://www.googletagmanager.com/gtag/js?id=${googleAnalyticsId}`}
+          strategy="afterInteractive"
+        />
+        <Script id="google-analytics" strategy="afterInteractive">
+          {`
+            window.dataLayer = window.dataLayer || [];
+            function gtag(){dataLayer.push(arguments);}
+            gtag('js', new Date());
+            gtag('config', '${googleAnalyticsId}');
+          `}
+        </Script>
         {children}
       </body>
     </html>
