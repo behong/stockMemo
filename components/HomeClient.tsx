@@ -365,13 +365,20 @@ export default function HomeClient({
     () =>
       displayRecords.map((record) => ({
         time: record.time,
-        individual: record.kospiIndividual,
-        foreign: record.kospiForeign,
-        institutional: record.kospiInstitution,
+        individual:
+          indexMode === "kosdaq"
+            ? record.kosdaqIndividual
+            : record.kospiIndividual,
+        foreign:
+          indexMode === "kosdaq" ? record.kosdaqForeign : record.kospiForeign,
+        institutional:
+          indexMode === "kosdaq"
+            ? record.kosdaqInstitution
+            : record.kospiInstitution,
         kospiIndex: record.kospiIndexValue,
         kosdaqIndex: record.kosdaqIndexValue,
       })),
-    [displayRecords],
+    [displayRecords, indexMode],
   );
 
   const statusLabel = useMemo(() => {

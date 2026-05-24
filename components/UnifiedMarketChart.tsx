@@ -70,6 +70,21 @@ function formatIndexValue(value: number, withUnit = false): string {
   return withUnit ? `${text}%` : text;
 }
 
+function getPaddedDomain(values: number[]): [number, number] | undefined {
+  const finiteValues = values.filter(Number.isFinite);
+  if (finiteValues.length === 0) return undefined;
+
+  const min = Math.min(...finiteValues);
+  const max = Math.max(...finiteValues);
+  if (min === max) {
+    const padding = Math.max(Math.abs(min) * 0.05, 1);
+    return [min - padding, max + padding];
+  }
+
+  const padding = (max - min) * 0.08;
+  return [min - padding, max + padding];
+}
+
 function UnifiedTooltip({
   active,
   payload,
@@ -189,6 +204,29 @@ export default function UnifiedMarketChart({
     });
   };
 
+  const visibleFlowKeys = useMemo(
+    () =>
+      (Object.keys(visible) as Array<keyof typeof visible>).filter(
+        (key) => visible[key],
+      ),
+    [visible],
+  );
+  const leftDomain = useMemo(
+    () =>
+      getPaddedDomain(
+        data.flatMap((point) => visibleFlowKeys.map((key) => point[key])),
+      ),
+    [data, visibleFlowKeys],
+  );
+  const rightDomain = useMemo(
+    () =>
+      getPaddedDomain(
+        data
+          .map((point) => point[indexKey])
+          .filter((value): value is number => value !== undefined),
+      ),
+    [data, indexKey],
+  );
   const chartBodyStyle = height ? { height } : undefined;
 
   return (
@@ -287,6 +325,7 @@ export default function UnifiedMarketChart({
                 tick={{ fontSize: 12, fill: "rgba(17,24,39,0.55)" }}
                 axisLine={false}
                 tickLine={false}
+                domain={leftDomain}
                 tickFormatter={(value) => formatAxisValue(value, locale)}
               />
               <YAxis
@@ -295,6 +334,7 @@ export default function UnifiedMarketChart({
                 tick={{ fontSize: 12, fill: "rgba(17,24,39,0.55)" }}
                 axisLine={false}
                 tickLine={false}
+                domain={rightDomain}
                 tickFormatter={(value) => formatIndexValue(value)}
               />
               <Tooltip

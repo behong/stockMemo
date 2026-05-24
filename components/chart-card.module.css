@@ -1,11 +1,7 @@
-:root {
+.card {
   --chart-border: rgba(0, 0, 0, 0.06);
   --chart-shadow: 0 10px 20px rgba(17, 24, 39, 0.08);
-  --pill-border: rgba(0, 0, 0, 0.15);
-  --pill-text: rgba(0, 0, 0, 0.55);
-}
 
-.card {
   border: 1px solid var(--chart-border);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.78);
@@ -93,6 +89,9 @@
 }
 
 .pillToggle {
+  --pill-border: rgba(0, 0, 0, 0.15);
+  --pill-text: rgba(0, 0, 0, 0.55);
+
   border-radius: 999px;
   border: 1px solid var(--pill-border);
   padding: 4px 10px;
@@ -164,6 +163,9 @@
 }
 
 .sparkCard {
+  --chart-border: rgba(0, 0, 0, 0.06);
+  --chart-shadow: 0 10px 20px rgba(17, 24, 39, 0.08);
+
   border: 1px solid var(--chart-border);
   border-radius: 18px;
   background: rgba(255, 255, 255, 0.78);
